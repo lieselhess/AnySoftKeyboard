@@ -1,4 +1,4 @@
-package com.radicalninja.logger;
+package com.radicalninja.anykeylogger;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -16,7 +16,6 @@ public class PreferencesManager {
     private static PreferencesManager sInstance;
 
     private SharedPreferences mPrefs;
-    private SharedPreferences.Editor mEditor;
 
     public static PreferencesManager getInstance(Context context) {
         if (sInstance == null) {
@@ -27,7 +26,6 @@ public class PreferencesManager {
 
     public PreferencesManager(Context context) {
         mPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        mEditor = mPrefs.edit();
     }
 
     public long getLastUsed() {
@@ -35,7 +33,7 @@ public class PreferencesManager {
     }
 
     public void setLastUsed(long lastUsedInMillis) {
-        mEditor.putLong(KEY_LASTUSED, lastUsedInMillis).apply();
+        mPrefs.edit().putLong(KEY_LASTUSED, lastUsedInMillis).commit();
     }
 
     public String getDbOauth() {
@@ -43,7 +41,7 @@ public class PreferencesManager {
     }
 
     public void setDbOauth(String dropboxOauthKey) {
-        mEditor.putString(KEY_DBOAUTH, dropboxOauthKey).apply();
+        mPrefs.edit().putString(KEY_DBOAUTH, dropboxOauthKey).commit();
     }
 
 }

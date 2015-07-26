@@ -33,6 +33,7 @@ import com.anysoftkeyboard.theme.KeyboardTheme;
 import com.anysoftkeyboard.theme.KeyboardThemeFactory;
 import com.menny.android.anysoftkeyboard.AnyApplication;
 import com.menny.android.anysoftkeyboard.R;
+import com.radicalninja.anykeylogger.DropboxUtil;
 
 import net.evendanan.pushingpixels.EdgeEffectHacker;
 import net.evendanan.pushingpixels.FragmentChauffeurActivity;
@@ -52,6 +53,7 @@ public class MainSettingsActivity extends FragmentChauffeurActivity {
             updateMenuExtraData();
         }
     };
+    private DropboxUtil mDropbox;
 
     @Override
     protected void onCreate(Bundle icicle) {
@@ -88,6 +90,8 @@ public class MainSettingsActivity extends FragmentChauffeurActivity {
         getSupportActionBar().setHomeButtonEnabled(true);
 
         AnyApplication.getConfig().addChangedListener(menuExtraUpdaterOnConfigChange);
+
+        mDropbox = new DropboxUtil(this);
     }
 
     @Override
@@ -114,6 +118,12 @@ public class MainSettingsActivity extends FragmentChauffeurActivity {
         super.onStart();
         //updating menu's data
         updateMenuExtraData();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mDropbox.finishAuthentication();
     }
 
     @Override

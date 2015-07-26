@@ -98,7 +98,7 @@ import com.menny.android.anysoftkeyboard.AnyApplication;
 import com.menny.android.anysoftkeyboard.BuildConfig;
 import com.menny.android.anysoftkeyboard.FeaturesSet;
 import com.menny.android.anysoftkeyboard.R;
-import com.radicalninja.logger.LoggerUtil;
+import com.radicalninja.anykeylogger.LoggerUtil;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;

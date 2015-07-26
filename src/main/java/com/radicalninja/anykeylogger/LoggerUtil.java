@@ -1,4 +1,4 @@
-package com.radicalninja.logger;
+package com.radicalninja.anykeylogger;
 
 import android.content.Context;
 
