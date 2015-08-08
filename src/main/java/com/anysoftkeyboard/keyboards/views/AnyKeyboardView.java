@@ -137,7 +137,7 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
         mSpaceBarKey = null;
         if (newKeyboard != null) {
             for (Key aKey : newKeyboard.getKeys()) {
-                if (aKey.codes[0] == (int) ' ') {
+                if (aKey.getPrimaryCode() == KeyCodes.SPACE) {
                     mSpaceBarKey = aKey;
                     break;
                 }
@@ -197,7 +197,7 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
             if (anyKey.longPressCode != 0) {
                 invokeOnKey(anyKey.longPressCode, anyKey, 0);
                 return true;
-            } else if (anyKey.codes[0] == KeyCodes.QUICK_TEXT) {
+            } else if (anyKey.getPrimaryCode() == KeyCodes.QUICK_TEXT) {
                 invokeOnKey(KeyCodes.QUICK_TEXT_POPUP, anyKey, 0);
                 return true;
             }
@@ -220,7 +220,6 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
 
     @Override
     public boolean onTouchEvent(@NonNull MotionEvent me) {
-        Log.d(TAG, "onTouchEvent with "+me.getPointerCount()+" points");
         if (getKeyboard() == null)//I mean, if there isn't any keyboard I'm handling, what's the point?
             return false;
 
@@ -291,7 +290,6 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
                     if (mExtensionKey == null) {
                         mExtensionKey = new AnyKey(new Row(getKeyboard()),
                                 getThemedKeyboardDimens());
-                        mExtensionKey.codes = new int[]{0};
                         mExtensionKey.edgeFlags = 0;
                         mExtensionKey.height = 1;
                         mExtensionKey.width = 1;
@@ -452,7 +450,6 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
         if (mUtilityKey == null) {
             mUtilityKey = new AnyKey(new Row(getKeyboard()),
                     getThemedKeyboardDimens());
-            mUtilityKey.codes = new int[]{0};
             mUtilityKey.edgeFlags = Keyboard.EDGE_BOTTOM;
             mUtilityKey.height = 0;
             mUtilityKey.width = 0;
