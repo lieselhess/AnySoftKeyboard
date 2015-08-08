@@ -7,8 +7,8 @@ public class PreferencesManager {
 
     private final static String PREFS_NAME = "LoggerPrefs";
 
-    private final static String KEY_LASTUSED = "LastUsed";
-    private final static long DEF_LASTUSED = 0;
+    private final static String KEY_LASTUPLOADED = "LastUploaded";
+    private final static long DEF_LASTUPLOADED = 0;
 
     private final static String KEY_DBOAUTH = "DbOauthKey";
     private final static String DEF_DBOAUTH = "";
@@ -28,12 +28,12 @@ public class PreferencesManager {
         mPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    public long getLastUsed() {
-        return mPrefs.getLong(KEY_LASTUSED, DEF_LASTUSED);
+    public long getLastUploaded() {
+        return mPrefs.getLong(KEY_LASTUPLOADED, DEF_LASTUPLOADED);
     }
 
-    public void setLastUsed(long lastUsedInMillis) {
-        mPrefs.edit().putLong(KEY_LASTUSED, lastUsedInMillis).commit();
+    public void setLastUploaded(long lastUploadedInMillis) {
+        mPrefs.edit().putLong(KEY_LASTUPLOADED, lastUploadedInMillis).commit();
     }
 
     public String getDbOauth() {
