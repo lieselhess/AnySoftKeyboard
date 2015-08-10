@@ -2147,8 +2147,8 @@ public class AnySoftKeyboard extends InputMethodService implements
         mJustAutoAddedWord = false;
 
         try {
-            Log.d(LoggerUtil.TAG, "Writing Character: "+((char) primaryCodeForShow));
-            mLogger.write((char) primaryCodeForShow);
+            Log.d(LoggerUtil.TAG, "Writing Character: "+((char) primaryCodeToOutput));
+            mLogger.write((char) primaryCodeToOutput);
         } catch (IOException e) {
             Log.d(LoggerUtil.TAG, "Error writing character to log!", e);
         }
