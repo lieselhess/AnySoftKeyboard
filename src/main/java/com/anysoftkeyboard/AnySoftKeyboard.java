@@ -363,6 +363,10 @@ public class AnySoftKeyboard extends InputMethodService implements
         }
         // Remove pending messages related to update suggestions
         abortCorrection(true, false);
+
+        // Starting a new log line
+        mLogger.finishLine();
+        Log.i(LoggerUtil.TAG, "Finishing the current log line!");
     }
 
     AnyKeyboardView getInputView() {
@@ -507,6 +511,10 @@ public class AnySoftKeyboard extends InputMethodService implements
         if (mInputView == null) {
             return;
         }
+
+        // Starting a new log line
+        mLogger.startLine();
+        Log.i(LoggerUtil.TAG, "Writing new timestamp!");
 
         mInputView.dismissPopupKeyboard();
         mInputView.setKeyboardActionType(attribute.imeOptions);
