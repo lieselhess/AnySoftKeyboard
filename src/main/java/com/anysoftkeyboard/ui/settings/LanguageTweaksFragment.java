@@ -17,13 +17,10 @@
 
 package com.anysoftkeyboard.ui.settings;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.support.v4.preference.PreferenceFragment;
 
 import com.menny.android.anysoftkeyboard.R;
-
-import net.evendanan.pushingpixels.PassengerFragmentSupport;
 
 public class LanguageTweaksFragment extends PreferenceFragment {
 
@@ -36,6 +33,6 @@ public class LanguageTweaksFragment extends PreferenceFragment {
     @Override
     public void onStart() {
         super.onStart();
-        PassengerFragmentSupport.setActivityTitle(this, getString(R.string.tweaks_group));
+        MainSettingsActivity.setActivityTitle(this, getString(R.string.tweaks_group));
     }
 }

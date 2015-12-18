@@ -20,14 +20,13 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
+import android.os.Build;
 import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.view.Gravity;
 
 import com.anysoftkeyboard.api.KeyCodes;
-import com.anysoftkeyboard.ui.tutorials.TutorialsProvider;
 import com.anysoftkeyboard.utils.Log;
-import com.anysoftkeyboard.utils.Workarounds;
 import com.menny.android.anysoftkeyboard.BuildConfig;
 import com.menny.android.anysoftkeyboard.FeaturesSet;
 import com.menny.android.anysoftkeyboard.R;
@@ -127,15 +126,13 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
         boolean firstAppInstall = false;
         boolean firstVersionInstall = false;
 
-        final int currentAppVersion = TutorialsProvider.getPackageVersion(context);
-
         final String FIRST_APP_VERSION_INSTALL = context.getString(R.string.settings_key_first_app_version_installed);
         if (!sp.contains(FIRST_APP_VERSION_INSTALL)) {
             firstAppInstall = true;
         }
 
         final String LAST_APP_VERSION_INSTALLED = context.getString(R.string.settings_key_last_app_version_installed);
-        if (sp.getInt(LAST_APP_VERSION_INSTALLED, 0) != currentAppVersion) {
+        if (sp.getInt(LAST_APP_VERSION_INSTALLED, 0) != BuildConfig.VERSION_CODE) {
             firstVersionInstall = true;
         }
 
@@ -144,12 +141,12 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
 
             final long installTime = System.currentTimeMillis();
             if (firstAppInstall) {
-                editor.putInt(FIRST_APP_VERSION_INSTALL, currentAppVersion);
+                editor.putInt(FIRST_APP_VERSION_INSTALL, BuildConfig.VERSION_CODE);
                 editor.putLong(context.getString(R.string.settings_key_first_time_app_installed), installTime);
             }
 
             if (firstVersionInstall) {
-                editor.putInt(LAST_APP_VERSION_INSTALLED, currentAppVersion);
+                editor.putInt(LAST_APP_VERSION_INSTALLED, BuildConfig.VERSION_CODE);
                 editor.putLong(context.getString(R.string.settings_key_first_time_current_version_installed), installTime);
             }
             editor.commit();
@@ -199,7 +196,7 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
      * So, the computed default could be one, and the static default may be another!
      * See https://github.com/AnySoftKeyboard/AnySoftKeyboard/issues/110
      */
-    private void initializeComputedValues(SharedPreferences sp){
+    private void initializeComputedValues(SharedPreferences sp) {
         boolean drawType = sp.getBoolean(mContext.getString(R.string.settings_key_workaround_disable_rtl_fix),
                 getAlwaysUseDrawTextDefault());
 
@@ -210,20 +207,9 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
 
     private void upgradeSettingsValues(SharedPreferences sp) {
         Log.d(TAG, "Checking if configuration upgrade is needed.");
-//      String topRowNewIdValue = sp.getString(mContext.getString(R.string.settings_key_top_keyboard_row_id), null);
-//      String topRowOldIdValue = sp.getString("keyboard_layout_change_method", null);
-//      if (topRowNewIdValue == null && topRowOldIdValue != null)
-//      {
-//          if (AnyApplication.DEBUG)Log.d(TAG, "Top row type is using the old configuration key. Switching...");
-//          Editor e = sp.edit();
-//          e.putString(mContext.getString(R.string.settings_key_top_keyboard_row_id), topRowOldIdValue);
-//          e.remove("keyboard_layout_change_method");
-//          e.commit();
-//      }
-
         //please note: the default value should be the last version.
         //upgrading should only be done when actually need to be done.
-        int configurationVersion = sp.getInt(CONFIGURATION_VERSION, 7);
+        int configurationVersion = sp.getInt(CONFIGURATION_VERSION, 8);
         if (configurationVersion < 1) {
             boolean oldLandscapeFullScreenValue = sp.getBoolean("fullscreen_input_connection_supported",
                     mContext.getResources().getBoolean(R.bool.settings_default_landscape_fullscreen));
@@ -231,24 +217,20 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
             Editor e = sp.edit();
             e.putBoolean(mContext.getString(R.string.settings_key_landscape_fullscreen), oldLandscapeFullScreenValue);
             e.remove("fullscreen_input_connection_supported");
-            //saving config level
-            e.putInt(CONFIGURATION_VERSION, 1);
             e.commit();
         }
 
         if (configurationVersion < 2) {
-            Log.i(TAG, "Reseting key height factor...");
+            Log.i(TAG, "Resetting key height factor...");
             Editor e = sp.edit();
             e.putString("zoom_factor_keys_in_portrait", mContext.getString(R.string.settings_default_portrait_keyboard_height_factor));
             e.putString("zoom_factor_keys_in_landscape", mContext.getString(R.string.settings_default_landscape_keyboard_height_factor));
-            //saving config level
-            e.putInt(CONFIGURATION_VERSION, 2);
             e.commit();
         }
 
         if (configurationVersion < 3) {
             Editor e = sp.edit();
-            if (Workarounds.getApiLevel() <= 7) {
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.ECLAIR_MR1) {
                 Log.i(TAG, "In API7 or lower, bottom row needs to be changed to not include mic...");
                 final String bottomRowKey = mContext.getString(R.string.settings_key_ext_kbd_bottom_row_key);
                 String currentBottomRowId = sp.getString(bottomRowKey, mContext.getString(R.string.settings_default_ext_kbd_bottom_row_key));
@@ -263,8 +245,6 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
                     e.putString(bottomRowKey, newBottomRowId);
                 }
             }
-            //saving config level
-            e.putInt(CONFIGURATION_VERSION, 3);
             e.commit();
         }
 
@@ -274,8 +254,6 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
             //this is done since some people have phones (which are full-screen ON) and tablets (which are full-screen OFF),
             //and the settings get over-written by BackupAgent
             e.putBoolean(mContext.getString(R.string.settings_key_landscape_fullscreen), mContext.getResources().getBoolean(R.bool.settings_default_landscape_fullscreen));
-            //saving config level
-            e.putInt(CONFIGURATION_VERSION, 4);
             e.commit();
         }
 
@@ -285,8 +263,6 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
             //read issue https://github.com/AnySoftKeyboard/AnySoftKeyboard/issues/110
             e.putBoolean(mContext.getString(R.string.settings_key_workaround_disable_rtl_fix),
                     getAlwaysUseDrawTextDefault());
-            //saving config level
-            e.putInt(CONFIGURATION_VERSION, 5);
             e.commit();
         }
 
@@ -295,8 +271,6 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
             Log.i(TAG, "Resetting settings_default_allow_suggestions_restart...");
             //read issue https://github.com/AnySoftKeyboard/AnySoftKeyboard/issues/299
             e.remove(mContext.getString(R.string.settings_key_allow_suggestions_restart));
-            //saving config level
-            e.putInt(CONFIGURATION_VERSION, 6);
             e.commit();
         }
 
@@ -305,10 +279,29 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
             Log.i(TAG, "Resetting settings_key_ordered_active_quick_text_keys...");
             //read issue https://github.com/AnySoftKeyboard/AnySoftKeyboard/issues/406
             e.remove(mContext.getString(R.string.settings_key_ordered_active_quick_text_keys));
-            //saving config level
-            e.putInt(CONFIGURATION_VERSION, 7);
             e.commit();
         }
+
+        if (configurationVersion < 8) {
+            final boolean autoPick = sp.getBoolean("auto_complete", true);
+            Editor e = sp.edit();
+            Log.i(TAG, "Converting auto_complete to settings_key_next_word_suggestion_aggressiveness...");
+            //read issue https://github.com/AnySoftKeyboard/AnySoftKeyboard/issues/510
+            e.remove("auto_complete");
+            if (autoPick) {
+                e.putString(mContext.getString(R.string.settings_key_next_word_suggestion_aggressiveness),
+                        mContext.getString(R.string.settings_default_auto_pick_suggestion_aggressiveness));
+                Log.i(TAG, "settings_key_next_word_suggestion_aggressiveness is ON...");
+            } else {
+                e.putString(mContext.getString(R.string.settings_key_next_word_suggestion_aggressiveness), "none");
+                Log.i(TAG, "settings_key_next_word_suggestion_aggressiveness is OFF...");
+            }
+        }
+
+        //saving config level
+        Editor e = sp.edit();
+        e.putInt(CONFIGURATION_VERSION, 8);
+        e.commit();
     }
 
     public void addChangedListener(OnSharedPreferenceChangeListener listener) {
@@ -546,7 +539,7 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
 
     private boolean getAlwaysUseDrawTextDefault() {
         if (android.os.Build.BRAND.contains("SEMC")//SE phones have fix for that, but more important, their StaticLayout class is bugged
-                || Workarounds.getApiLevel() > 11) //Android has native fix for API level 11! Ya
+                || Build.VERSION.SDK_INT > Build.VERSION_CODES.HONEYCOMB) //Android has native fix for API level 11! Ya
             return true;
         else
             return mContext.getResources().getBoolean(R.bool.settings_default_workaround_disable_rtl_fix);
@@ -665,7 +658,7 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
     }
 
     public int getGestureSwipeUpKeyCode(boolean fromSpaceBar) {
-        return fromSpaceBar? mSwipeUpFromSpaceBarKeyCode : mSwipeUpKeyCode;
+        return fromSpaceBar ? mSwipeUpFromSpaceBarKeyCode : mSwipeUpKeyCode;
     }
 
     public int getGestureSwipeDownKeyCode() {
@@ -673,13 +666,13 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
     }
 
     public int getGestureSwipeLeftKeyCode(boolean fromSpaceBar, boolean withTwoFingers) {
-        return fromSpaceBar? mSwipeLeftFromSpaceBarKeyCode :
-                withTwoFingers? mSwipeLeftWithTwoFingersKeyCode : mSwipeLeftKeyCode;
+        return fromSpaceBar ? mSwipeLeftFromSpaceBarKeyCode :
+                withTwoFingers ? mSwipeLeftWithTwoFingersKeyCode : mSwipeLeftKeyCode;
     }
 
     public int getGestureSwipeRightKeyCode(boolean fromSpaceBar, boolean withTwoFingers) {
-        return fromSpaceBar? mSwipeRightFromSpaceBarKeyCode :
-                withTwoFingers? mSwipeRightWithTwoFingersKeyCode : mSwipeRightKeyCode;
+        return fromSpaceBar ? mSwipeRightFromSpaceBarKeyCode :
+                withTwoFingers ? mSwipeRightWithTwoFingersKeyCode : mSwipeRightKeyCode;
     }
 
     public int getGesturePinchKeyCode() {
