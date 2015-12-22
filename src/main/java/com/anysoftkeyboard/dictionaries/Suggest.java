@@ -27,6 +27,7 @@ import com.anysoftkeyboard.dictionaries.sqlite.AbbreviationsDictionary;
 import com.anysoftkeyboard.utils.CompatUtils;
 import com.anysoftkeyboard.utils.IMEUtil;
 import com.anysoftkeyboard.utils.Log;
+import com.menny.android.anysoftkeyboard.BuildConfig;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,7 +65,8 @@ public class Suggest implements Dictionary.WordCallback {
     private List<String> mLocaleSpecificPunctuations = null;
 
     private int[] mPriorities = new int[mPrefMaxSuggestions];
-    private List<CharSequence> mSuggestions = new ArrayList<>();
+    private final List<CharSequence> mSuggestions = new ArrayList<>();
+    private final List<CharSequence> mNextSuggestions = new ArrayList<>();
     // private boolean mIncludeTypedWordIfValid;
     private List<CharSequence> mStringPool = new ArrayList<>();
     // private Context mContext;
@@ -82,6 +84,9 @@ public class Suggest implements Dictionary.WordCallback {
     private boolean mAutoTextEnabled = true;
     private boolean mMainDictionaryEnabled = true;
 
+    private int mCommonalityMaxLengthDiff = 1;
+    private int mCommonalityMaxDistance = 1;
+
     public Suggest(Context context) {
         mDictionaryFactory = new DictionaryFactory();
         for (int i = 0; i < mPrefMaxSuggestions; i++) {
@@ -90,9 +95,11 @@ public class Suggest implements Dictionary.WordCallback {
         }
     }
 
-    public void setCorrectionMode(boolean autoText, boolean mainDictionary) {
+    public void setCorrectionMode(boolean autoText, boolean mainDictionary, int maxLengthDiff, int maxDistance) {
         mAutoTextEnabled = autoText;
         mMainDictionaryEnabled = mainDictionary;
+        mCommonalityMaxLengthDiff = maxLengthDiff;
+        mCommonalityMaxDistance = maxDistance;
     }
 
     /**
@@ -104,6 +111,20 @@ public class Suggest implements Dictionary.WordCallback {
             mUserDictionary.close();
 
         mUserDictionary = (UserDictionary) userDictionary;
+    }
+
+    public void closeDictionaries() {
+        Log.d(TAG, "closeDictionaries");
+        if (mMainDict != null) mMainDict.close();
+        mMainDict = null;
+        if (mAbbreviationDictionary != null) mAbbreviationDictionary.close();
+        mAbbreviationDictionary = null;
+        if (mAutoDictionary != null) mAutoDictionary.close();
+        mAutoDictionary = null;
+        if (mContactsDictionary != null) mContactsDictionary.close();
+        mContactsDictionary = null;
+        if (mUserDictionary != null) mUserDictionary.close();
+        mUserDictionary = null;
     }
 
     public void setMainDictionary(Context askContext, @Nullable DictionaryAddOnAndBuilder dictionaryBuilder) {
@@ -188,46 +209,53 @@ public class Suggest implements Dictionary.WordCallback {
         }
     }
 
-    private boolean haveSufficientCommonality(String original,
-                                              CharSequence suggestion) {
-        final int originalLength = original.length();
-        final int suggestionLength = suggestion.length();
+    private boolean haveSufficientCommonality(String typedWord, CharSequence toBeAutoPickedSuggestion) {
+        final int originalLength = typedWord.length();
+        final int suggestionLength = toBeAutoPickedSuggestion.length();
         final int lengthDiff = suggestionLength - originalLength;
 
-        if (lengthDiff == 0 || lengthDiff == 1) {
-            return true;
-        }
-
-        final int distance = IMEUtil.editDistance(original, suggestion);
-
-        return distance <= 1;
+        return lengthDiff <= mCommonalityMaxLengthDiff &&
+                IMEUtil.editDistance(typedWord, toBeAutoPickedSuggestion) <= mCommonalityMaxDistance;
     }
 
     public void resetNextWordSentence() {
-        if (mUserDictionary != null) mUserDictionary.resetNextWordMemory();
+        if (mUserDictionary != null) {
+            mNextSuggestions.clear();
+            mUserDictionary.resetNextWordMemory();
+        }
     }
     /**
      * Returns a list of suggested next words for the given typed word
      *
      * @return list of suggestions.
      */
-    public List<CharSequence> getNextSuggestions(WordComposer wordComposerOfCompletedWord) {
-        if (mUserDictionary == null || wordComposerOfCompletedWord.length() < mMinimumWordSizeToStartCorrecting)
+    public List<CharSequence> getNextSuggestions(final CharSequence previousWord, final boolean inAllUpperCaseState) {
+        if (mUserDictionary == null || previousWord.length() < mMinimumWordSizeToStartCorrecting) {
+            Log.d(TAG, "getNextSuggestions a word less than %d characters.", mMinimumWordSizeToStartCorrecting);
             return Collections.emptyList();
-        collectGarbage();
-        mIsAllUpperCase = wordComposerOfCompletedWord.isAllUpperCase();
+        }
+
+        mNextSuggestions.clear();
+        mIsAllUpperCase = inAllUpperCaseState;
 
         //only adding VALID words
-        final CharSequence preferredWord = wordComposerOfCompletedWord.getPreferredWord();
-        if (isValidWord(preferredWord)) {
-            mUserDictionary.getNextWords(preferredWord.toString().toLowerCase(mLocale), mPrefMaxSuggestions, mSuggestions, mLocaleSpecificPunctuations);
-            if (mIsAllUpperCase) {
-                for (int suggestionIndex=0; suggestionIndex<mSuggestions.size(); suggestionIndex++) {
-                    mSuggestions.set(suggestionIndex, mSuggestions.get(suggestionIndex).toString().toUpperCase(mLocale));
+        if (isValidWord(previousWord)) {
+            mUserDictionary.getNextWords(previousWord.toString().toLowerCase(mLocale), mPrefMaxSuggestions, mNextSuggestions, mLocaleSpecificPunctuations);
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "getNextSuggestions for '%s' (capital? %s):", previousWord, mIsAllUpperCase);
+                for (int suggestionIndex=0; suggestionIndex<mNextSuggestions.size(); suggestionIndex++) {
+                    Log.d(TAG, "* getNextSuggestions #%d :''%s'", suggestionIndex, mNextSuggestions.get(suggestionIndex));
                 }
             }
+            if (mIsAllUpperCase) {
+                for (int suggestionIndex=0; suggestionIndex<mNextSuggestions.size(); suggestionIndex++) {
+                    mNextSuggestions.set(suggestionIndex, mNextSuggestions.get(suggestionIndex).toString().toUpperCase(mLocale));
+                }
+            }
+        } else {
+            Log.d(TAG, "getNextSuggestions for '%s' is invalid.");
         }
-        return mSuggestions;
+        return mNextSuggestions;
     }
 
     /**
@@ -252,16 +280,15 @@ public class Suggest implements Dictionary.WordCallback {
         } else {
             mLowerOriginalWord = "";
         }
-        // Search the dictionary only if there are at least 2 (configurable)
+
+        // Search the dictionary only if there are at least mMinimumWordSizeToStartCorrecting (configurable)
         // characters
         if (wordComposer.length() >= mMinimumWordSizeToStartCorrecting) {
             if (mContactsDictionary != null) {
-                Log.v(TAG, "getSuggestions from contacts-dictionary");
                 mContactsDictionary.getWords(wordComposer, this);
             }
 
             if (mUserDictionary != null) {
-                Log.v(TAG, "getSuggestions from user-dictionary");
                 mUserDictionary.getWords(wordComposer, this);
             }
 
@@ -270,12 +297,10 @@ public class Suggest implements Dictionary.WordCallback {
             }
 
             if (mMainDict != null) {
-                Log.v(TAG, "getSuggestions from main-dictionary");
                 mMainDict.getWords(wordComposer, this);
             }
 
             if (mAutoTextEnabled && mAbbreviationDictionary != null) {
-                Log.v(TAG, "getSuggestions from mAbbreviationDictionary");
                 mAbbreviationDictionary.getWords(wordComposer, this);
             }
 
@@ -284,52 +309,66 @@ public class Suggest implements Dictionary.WordCallback {
             }
         }
 
-        if (mOriginalWord != null) {
-            mSuggestions.add(0, mOriginalWord.toString());
+        //now, we'll look at the next-words-suggestions list, and add all the ones that begins
+        //with the typed word. These suggestions are top priority, so they will be added
+        //at the top of the list
+        final int typedWordLength = mLowerOriginalWord.length();
+        //since the next-word-suggestions are order by usage, we'd like to add them at the
+        //same order
+        int nextWordInsertionIndex = 0;
+        for (CharSequence nextWordSuggestion : mNextSuggestions) {
+            if (nextWordSuggestion.length() >= typedWordLength && nextWordSuggestion.subSequence(0, typedWordLength).equals(mOriginalWord)) {
+                mSuggestions.add(nextWordInsertionIndex, nextWordSuggestion);
+                nextWordInsertionIndex++;//next next-word will have lower usage, so it should be added after this one.
+            }
         }
-        if (mExplodedAbbreviations.size() > 0) {
-            //typed at zero, exploded at 1 index.
-            for (String explodedWord : mExplodedAbbreviations)
-                mSuggestions.add(1, explodedWord);
 
-            mHaveCorrection = true;//so the exploded text will be auto-committed.
+        //adding the typed word at the head of the suggestions list
+        if (!TextUtils.isEmpty(mOriginalWord)) {
+            mSuggestions.add(0, mOriginalWord.toString());
+
+            if (mExplodedAbbreviations.size() > 0) {
+                //typed at zero, exploded at 1 index. These are super high priority
+                int explodedWordInsertionIndex = 1;
+                for (String explodedWord : mExplodedAbbreviations) {
+                    mSuggestions.add(explodedWordInsertionIndex, explodedWord);
+                    explodedWordInsertionIndex++;
+                }
+
+                mHaveCorrection = true;//so the exploded text will be auto-committed.
+            }
         }
-        // Check if the first suggestion has a minimum number of characters in
-        // common
-        if (mMainDictionaryEnabled && mSuggestions.size() > 1 && mExplodedAbbreviations.size() == 0) {
-            if (!haveSufficientCommonality(mLowerOriginalWord,
-                    mSuggestions.get(1))) {
+
+        if (mLowerOriginalWord.length() > 0) {
+            CharSequence autoText = mAutoTextEnabled && mAutoText != null ? mAutoText.lookup(mLowerOriginalWord, 0, mLowerOriginalWord.length()) : null;
+            // Is there an AutoText correction?
+            // Is that correction already the current prediction (or original
+            // word)?
+            boolean canAdd = (!TextUtils.isEmpty(autoText)) && (!TextUtils.equals(autoText, mOriginalWord));
+            if (canAdd) {
+                mHaveCorrection = true;
+                if (mSuggestions.size() == 0) {
+                    mSuggestions.add(mOriginalWord);
+                }
+                mSuggestions.add(1, autoText);
+            }
+        }
+
+        //removing possible duplicates to typed.
+        int maxSearchIndex = Math.min(5, mSuggestions.size());
+        for (int suggestionIndex = 1; suggestionIndex<maxSearchIndex; suggestionIndex++) {
+            if (TextUtils.equals(mOriginalWord, mSuggestions.get(suggestionIndex))) {
+                mSuggestions.remove(suggestionIndex);
+                maxSearchIndex--;
+            }
+        }
+
+        // Check if the first suggestion has a minimum number of characters in common
+        if (mHaveCorrection && mMainDictionaryEnabled && mSuggestions.size() > 1 && mExplodedAbbreviations.size() == 0) {
+            if (!haveSufficientCommonality(mLowerOriginalWord, mSuggestions.get(1))) {
                 mHaveCorrection = false;
             }
         }
-
-        int i = 0;
-        int max = 6;
-        // Don't autotext the suggestions from the dictionaries
-        if (!mMainDictionaryEnabled && mAutoTextEnabled)
-            max = 1;
-        while (i < mSuggestions.size() && i < max) {
-            String suggestedWord = mSuggestions.get(i).toString().toLowerCase(mLocale);
-
-            CharSequence autoText = mAutoTextEnabled && mAutoText != null ? mAutoText
-                    .lookup(suggestedWord, 0, suggestedWord.length()) : null;
-            // Is there an AutoText correction?
-            boolean canAdd = autoText != null;
-            // Is that correction already the current prediction (or original
-            // word)?
-            canAdd &= !TextUtils.equals(autoText, mSuggestions.get(i));
-            // Is that correction already the next predicted word?
-            if (canAdd && i + 1 < mSuggestions.size() && mMainDictionaryEnabled) {
-                canAdd &= !TextUtils.equals(autoText, mSuggestions.get(i + 1));
-            }
-            if (canAdd) {
-                mHaveCorrection = true;
-                mSuggestions.add(i + 1, autoText);
-                i++;
-            }
-            i++;
-        }
-
         return mSuggestions;
     }
 

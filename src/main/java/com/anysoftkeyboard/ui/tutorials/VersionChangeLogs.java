@@ -11,9 +11,35 @@ public class VersionChangeLogs {
     static List<VersionChangeLog> createChangeLog() {
         List<VersionChangeLog> log = new ArrayList<>();
 
+        log.add(new VersionChangeLog(1, 6, "r2.1", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.6-r2.1"),
+                "Super annoying crash fixing"));
+
+        log.add(new VersionChangeLog(1, 6, "r2", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.6-r2"),
+                "More about Clipboard: long-pressing the Paste key allows pasting from the past!",
+                "Now supporting devices with non-standard touch support.",
+                "Crashes, crashes, crashes... Gone.",
+                "A few UI refinements.",
+                "YABTU"));
+
+        log.add(new VersionChangeLog(1, 6, "r1", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.6-r1"),
+                "Clipboard actions! Checkout the utility keyboard (swipe up from the space-bar).",
+                "Small UI changes, too small to notice. But I'm happier.",
+                "Bug squashing.",
+                "YABTU.",
+                "Localization update: tlh (Klingon), IW, and complete translation for DE (thanks goes to Nick Felsch)."));
+
         log.add(new VersionChangeLog(1, 6, "", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.6"),
                 "Next Words prediction is here! It learns from your typing (so, give it a little time to start suggesting).",
-                "Localization update: "));
+                "And, yes, previous line was auto-completed using Next Words prediction.",
+                "You requested and someone did it: new Lean Light theme is here.",
+                "I keep finding crashes, but then they magically go away.",
+                "YABTU (Yet another build tools update).",
+                "Localization update: TR, PL, DE."));
+
+        log.add(new VersionChangeLog(1, 5, "r4", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/v1.5_r4"),
+                "Linguistics say 'Help' and 'help' are the same word. Completion will take care of that now. #TheCustomerAlwaysRight",
+                "People complained about crashes. I fixed them. #TheCustomerAlwaysRight2",
+                "Updating build tools - yes, it's that boring."));
 
         log.add(new VersionChangeLog(1, 5, "r3", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/v1.5_r3"),
                 "...and then pressing SHIFT changed symbols on the bottom row.",

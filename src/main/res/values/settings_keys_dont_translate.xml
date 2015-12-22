@@ -66,6 +66,20 @@
         <item>@string/next_words_dictionary_words_punctuations</item>
     </string-array>
 
+    <string-array name="next_word_dictionary_aggressiveness_types">
+        <item>@string/use_next_words_dictionary_aggressiveness_minimal</item>
+        <item>@string/use_next_words_dictionary_aggressiveness_medium</item>
+        <item>@string/use_next_words_dictionary_aggressiveness_maximum</item>
+    </string-array>
+
+    <string-array name="auto_pick_suggestion_aggressiveness_types">
+        <item>@string/auto_pick_suggestion_aggressiveness_none</item>
+        <item>@string/auto_pick_suggestion_aggressiveness_minimal</item>
+        <item>@string/auto_pick_suggestion_aggressiveness_medium</item>
+        <item>@string/auto_pick_suggestion_aggressiveness_high</item>
+        <item>@string/auto_pick_suggestion_aggressiveness_extreme</item>
+    </string-array>
+
     <string name="settings_key_use_contacts_dictionary">settings_key_use_contacts_dictionary</string>
 
     <string name="settings_key_active_quick_text_key">settings_key_active_quick_text_key</string>
@@ -254,4 +268,5 @@
     <string name="settings_key_swipe_up_from_spacebar_action">settings_key_swipe_up_from_spacebar_action</string>
     <string name="settings_key_pinch_gesture_action">settings_key_pinch_gesture_action</string>
     <string name="settings_key_separate_gesture_action">settings_key_separate_gesture_action</string>
+    <string name="next_word_dict_settings_key">next_word_dict_settings_key</string>
 </resources>

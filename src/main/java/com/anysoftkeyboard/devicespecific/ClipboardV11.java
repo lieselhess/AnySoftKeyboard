@@ -26,25 +26,35 @@ import com.anysoftkeyboard.IndirectlyInstantiated;
 
 @TargetApi(11)
 @IndirectlyInstantiated
-final class ClipboardV11 implements Clipboard {
-    private final ClipboardManager cbV11;
+public class ClipboardV11 implements Clipboard {
+    private final ClipboardManager mClipboardManager;
     private final Context mAppContext;
 
-    ClipboardV11(ClipboardDiagram diagram) {
+    public ClipboardV11(ClipboardDiagram diagram) {
         mAppContext = diagram.getContext();
-        cbV11 = (ClipboardManager) mAppContext
-                .getSystemService(Context.CLIPBOARD_SERVICE);
+        mClipboardManager = (ClipboardManager) mAppContext.getSystemService(Context.CLIPBOARD_SERVICE);
     }
 
+    @Override
     public void setText(CharSequence text) {
-        cbV11.setPrimaryClip(ClipData.newPlainText("Styled Text", text));
+        ClipData newClipData = ClipData.newPlainText("Styled Text", text);
+        ClipData oldClipData = mClipboardManager.getPrimaryClip();
+        if (oldClipData != null) {
+            //we have previous data, we would like to add all the previous
+            //text into the new clip-data
+            for (int oldClipDataItemIndex=0; oldClipDataItemIndex<oldClipData.getItemCount(); oldClipDataItemIndex++) {
+                newClipData.addItem(oldClipData.getItemAt(oldClipDataItemIndex));
+            }
+        }
+        mClipboardManager.setPrimaryClip(newClipData);
     }
 
-    public CharSequence getText() {
-        ClipData cp = cbV11.getPrimaryClip();
+    @Override
+    public CharSequence getText(int entryIndex) {
+        ClipData cp = mClipboardManager.getPrimaryClip();
         if (cp != null) {
             if (cp.getItemCount() > 0) {
-                Item cpi = cp.getItemAt(0);
+                Item cpi = cp.getItemAt(entryIndex);
                 return cpi.coerceToText(mAppContext);
             }
         }
@@ -52,4 +62,10 @@ final class ClipboardV11 implements Clipboard {
         return null;
     }
 
+    @Override
+    public int getClipboardEntriesCount() {
+        ClipData cp = mClipboardManager.getPrimaryClip();
+        if (cp != null) return cp.getItemCount();
+        return 0;
+    }
 }

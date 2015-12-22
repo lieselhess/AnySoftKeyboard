@@ -81,11 +81,9 @@ import com.menny.android.anysoftkeyboard.BuildConfig;
 import com.menny.android.anysoftkeyboard.R;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Set;
 
 public class AnyKeyboardBaseView extends View implements
         PointerTracker.UIProxy, OnSharedPreferenceChangeListener {
@@ -158,7 +156,9 @@ public class AnyKeyboardBaseView extends View implements
     protected OnKeyboardActionListener mKeyboardActionListener;
     private final MiniKeyboardActionListener mChildKeyboardActionListener = new MiniKeyboardActionListener(this);
 
-    private final ArrayList<PointerTracker> mPointerTrackers = new ArrayList<>();
+    @NonNull
+    private final PointerTracker.SharedPointerTrackersData mSharedPointerTrackersData = new PointerTracker.SharedPointerTrackersData();
+    private final SparseArray<PointerTracker> mPointerTrackers = new SparseArray<>();
 
     // TODO: Let the PointerTracker class manage this pointer queue
     final PointerQueue mPointerQueue = new PointerQueue();
@@ -231,8 +231,8 @@ public class AnyKeyboardBaseView extends View implements
         mPreviewPopupManager.cancelAllPreviews();
         dismissPopupKeyboard();
 
-        for (PointerTracker tracker : mPointerTrackers) {
-            Log.d(TAG, "Canceling tracker " + tracker.getKeyIndex());
+        for(int trackerIndex = 0, trackersCount = mPointerTrackers.size(); trackerIndex < trackersCount; trackerIndex++) {
+            PointerTracker tracker = mPointerTrackers.valueAt(trackerIndex);
             sendOnXEvent(MotionEvent.ACTION_CANCEL, 0, 0, 0, tracker);
             tracker.setAlreadyProcessed();
         }
@@ -843,6 +843,15 @@ public class AnyKeyboardBaseView extends View implements
                 case R.attr.iconKeyCondenseCompactToLeft:
                     keyCode = KeyCodes.COMPACT_LAYOUT_TO_LEFT;
                     break;
+                case R.attr.iconKeyClipboardCopy:
+                    keyCode = KeyCodes.CLIPBOARD_COPY;
+                    break;
+                case R.attr.iconKeyClipboardCut:
+                    keyCode = KeyCodes.CLIPBOARD_CUT;
+                    break;
+                case R.attr.iconKeyClipboardPaste:
+                    keyCode = KeyCodes.CLIPBOARD_PASTE;
+                    break;
                 default:
                     keyCode = 0;
             }
@@ -897,7 +906,8 @@ public class AnyKeyboardBaseView extends View implements
 
     public void setOnKeyboardActionListener(OnKeyboardActionListener listener) {
         mKeyboardActionListener = listener;
-        for (PointerTracker tracker : mPointerTrackers) {
+        for(int trackerIndex = 0, trackersCount = mPointerTrackers.size(); trackerIndex < trackersCount; trackerIndex++) {
+            PointerTracker tracker = mPointerTrackers.valueAt(trackerIndex);
             tracker.setOnKeyboardActionListener(listener);
         }
     }
@@ -935,7 +945,8 @@ public class AnyKeyboardBaseView extends View implements
         mKeyboardName = keyboard != null ? keyboard.getKeyboardName() : null;
         mKeys = mKeyDetector.setKeyboard(keyboard);
         mKeyDetector.setCorrection(-getPaddingLeft(), -getPaddingTop() + verticalCorrection);
-        for (PointerTracker tracker : mPointerTrackers) {
+        for(int trackerIndex = 0, trackersCount = mPointerTrackers.size(); trackerIndex < trackersCount; trackerIndex++) {
+            PointerTracker tracker = mPointerTrackers.valueAt(trackerIndex);
             tracker.setKeyboard(mKeys, mKeyHysteresisDistance);
         }
         // setting the icon/text
@@ -1749,8 +1760,10 @@ public class AnyKeyboardBaseView extends View implements
     }
 
     void dismissAllKeyPreviews() {
-        for (PointerTracker tracker : mPointerTrackers)
+        for(int trackerIndex = 0, trackersCount = mPointerTrackers.size(); trackerIndex < trackersCount; trackerIndex++) {
+            PointerTracker tracker = mPointerTrackers.valueAt(trackerIndex);
             tracker.updateKey(NOT_A_KEY);
+        }
         mPreviewPopupManager.cancelAllPreviews();
     }
 
@@ -1883,6 +1896,11 @@ public class AnyKeyboardBaseView extends View implements
         return mKeyTextColor;
     }
 
+    private boolean invokeOnKey(int primaryCode, Key key, int multiTapIndex) {
+        getOnKeyboardActionListener().onKey(primaryCode, key, multiTapIndex, null, false/*not directly pressed the UI key*/);
+        return true;
+    }
+
     /**
      * Called when a key is long pressed. By default this will open any popup
      * keyboard associated with this key through the attributes popupLayout and
@@ -1895,6 +1913,17 @@ public class AnyKeyboardBaseView extends View implements
      */
     protected boolean onLongPress(Context packageContext, Key popupKey,
                                   boolean isSticky, boolean requireSlideInto) {
+        if (popupKey instanceof AnyKey) {
+            AnyKey anyKey = (AnyKey) popupKey;
+            if (anyKey.longPressCode != 0) {
+                invokeOnKey(anyKey.longPressCode, anyKey, 0);
+                return true;
+            } else if (anyKey.getPrimaryCode() == KeyCodes.QUICK_TEXT) {
+                invokeOnKey(KeyCodes.QUICK_TEXT_POPUP, anyKey, 0);
+                return true;
+            }
+        }
+
         if (popupKey.popupResId == 0) return false;
 
         int[] windowOffset = getLocationInWindow();
@@ -1993,22 +2022,19 @@ public class AnyKeyboardBaseView extends View implements
     }
 
     protected PointerTracker getPointerTracker(final int id) {
-        final ArrayList<PointerTracker> pointers = mPointerTrackers;
         final Key[] keys = mKeys;
         final OnKeyboardActionListener listener = mKeyboardActionListener;
 
-        // Create pointer trackers until we can get 'id+1'-th tracker, if
-        // needed.
-        for (int i = pointers.size(); i <= id; i++) {
-            final PointerTracker tracker = new PointerTracker(i, mHandler, mKeyDetector, this, getResources());
+        if (mPointerTrackers.get(id) == null) {
+            final PointerTracker tracker = new PointerTracker(id, mHandler, mKeyDetector, this, mSharedPointerTrackersData);
             if (keys != null)
                 tracker.setKeyboard(keys, mKeyHysteresisDistance);
             if (listener != null)
                 tracker.setOnKeyboardActionListener(listener);
-            pointers.add(tracker);
+            mPointerTrackers.put(id, tracker);
         }
 
-        return pointers.get(id);
+        return mPointerTrackers.get(id);
     }
 
     @Override
@@ -2023,12 +2049,27 @@ public class AnyKeyboardBaseView extends View implements
             mLastTimeHadTwoFingers = SystemClock.elapsedRealtime();//marking the time. Read isAtTwoFingersState()
 
         if (mTouchesAreDisabledTillLastFingerIsUp) {
+            //when do we reset the mTouchesAreDisabledTillLastFingerIsUp flag:
+            //Only if we have a single pointer
+            //and:
+            // CANCEL - the single pointer has been cancelled. So no pointers
+            // UP - the single pointer has been lifted. So now we have no pointers down.
+            // DOWN - this is the first action from the single pointer, so we already were in no-pointers down state.
             if (mOldPointerCount == 1 &&
-                    (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP)) {
+                            (action == MotionEvent.ACTION_CANCEL ||
+                             action == MotionEvent.ACTION_DOWN ||
+                             action == MotionEvent.ACTION_UP)) {
                 mTouchesAreDisabledTillLastFingerIsUp = false;
+                //continue with onTouchEvent flow.
+                if (action != MotionEvent.ACTION_DOWN) {
+                    //swallowing the event.
+                    //in case this is a DOWN event, we do want to pass it
+                    return true;
+                }
+            } else {
+                //swallowing touch event until we reset mTouchesAreDisabledTillLastFingerIsUp
+                return true;
             }
-
-            return true;
         }
         // TODO: cleanup this code into a multi-touch to single-touch event
         // converter class?
@@ -2116,8 +2157,7 @@ public class AnyKeyboardBaseView extends View implements
         if (action == MotionEvent.ACTION_MOVE) {
             for (int i = 0; i < pointerCount; i++) {
                 PointerTracker tracker = getPointerTracker(nativeMotionEvent.getPointerId(i));
-                tracker.onMoveEvent((int) nativeMotionEvent.getX(i), (int) nativeMotionEvent.getY(i),
-                        eventTime);
+                tracker.onMoveEvent((int) nativeMotionEvent.getX(i), (int) nativeMotionEvent.getY(i));
             }
         } else {
             PointerTracker tracker = getPointerTracker(id);
@@ -2180,9 +2220,8 @@ public class AnyKeyboardBaseView extends View implements
         mPointerQueue.remove(tracker);
     }
 
-    protected void onCancelEvent(PointerTracker tracker, int x, int y,
-                                 long eventTime) {
-        tracker.onCancelEvent(x, y, eventTime);
+    protected void onCancelEvent(PointerTracker tracker, int x, int y, long eventTime) {
+        tracker.onCancelEvent();
         mPointerQueue.remove(tracker);
     }
 

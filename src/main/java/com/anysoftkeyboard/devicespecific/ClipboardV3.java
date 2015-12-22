@@ -25,22 +25,29 @@ import com.anysoftkeyboard.IndirectlyInstantiated;
 @SuppressWarnings("deprecation")
 @TargetApi(3)
 @IndirectlyInstantiated
-final class ClipboardV3 implements Clipboard {
-    private final ClipboardManager cbV3;
+public class ClipboardV3 implements Clipboard {
+    private final ClipboardManager mClipboardManager;
 
-    ClipboardV3(ClipboardDiagram diagram) {
-        cbV3 = (android.text.ClipboardManager) diagram.getContext()
-                .getSystemService(Context.CLIPBOARD_SERVICE);
+    public ClipboardV3(ClipboardDiagram diagram) {
+        mClipboardManager = (android.text.ClipboardManager)
+                diagram.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
     }
 
+    @Override
     public void setText(CharSequence text) {
-        cbV3.setText(text);
+        mClipboardManager.setText(text);
     }
 
-    public CharSequence getText() {
-        if (cbV3.hasText())
-            return cbV3.getText();
+    @Override
+    public CharSequence getText(int entryIndex) {
+        if (mClipboardManager.hasText())
+            return mClipboardManager.getText();
         else
             return null;
+    }
+
+    @Override
+    public int getClipboardEntriesCount() {
+        return mClipboardManager.hasText()? 0 : 1;
     }
 }

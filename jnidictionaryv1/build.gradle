@@ -1,12 +1,12 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 22
-    buildToolsVersion "22.0.1"
+    compileSdkVersion sdkCompileVersion
+    buildToolsVersion androidBuildTools
 
     defaultConfig {
-        minSdkVersion 7
-        targetSdkVersion 22
+        minSdkVersion sdkMinimumVersion
+        targetSdkVersion sdkTargetVersion
         versionCode 1
         versionName "1.0"
         ndk {
@@ -18,7 +18,8 @@ android {
 dependencies {
     repositories {
         mavenCentral()
+        maven { url "https://jitpack.io" }
     }
-    compile 'net.evendanan.anysoftkeyboard:api:1.2.3'
+    compile "com.github.AnySoftKeyboard:AnySoftKeyboard-API:$AnySoftKeyboardApiVersion"
     compile project(':base')
 }

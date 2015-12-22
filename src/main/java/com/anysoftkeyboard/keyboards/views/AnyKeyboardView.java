@@ -173,11 +173,6 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
         return mIsFirstDownEventInsideSpaceBar;
     }
 
-    private boolean invokeOnKey(int primaryCode, Key key, int multiTapIndex) {
-        getOnKeyboardActionListener().onKey(primaryCode, key, multiTapIndex, null, false);
-        return true;
-    }
-
     public boolean setShiftLocked(boolean shiftLocked) {
         AnyKeyboard keyboard = getKeyboard();
         if (keyboard != null) {
@@ -190,19 +185,7 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
     }
 
     @Override
-    protected boolean onLongPress(Context packageContext, Key key,
-                                  boolean isSticky, boolean requireSlideInto) {
-        if (key != null && key instanceof AnyKey) {
-            AnyKey anyKey = (AnyKey) key;
-            if (anyKey.longPressCode != 0) {
-                invokeOnKey(anyKey.longPressCode, anyKey, 0);
-                return true;
-            } else if (anyKey.getPrimaryCode() == KeyCodes.QUICK_TEXT) {
-                invokeOnKey(KeyCodes.QUICK_TEXT_POPUP, anyKey, 0);
-                return true;
-            }
-        }
-
+    protected boolean onLongPress(Context packageContext, Key key, boolean isSticky, boolean requireSlideInto) {
         if (mAnimationLevel == AnimationsLevel.None) {
             mMiniKeyboardPopup.setAnimationStyle(0);
         } else if (mExtensionVisible && mMiniKeyboardPopup.getAnimationStyle() != R.style.ExtensionKeyboardAnimation) {
@@ -223,8 +206,7 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
         if (getKeyboard() == null)//I mean, if there isn't any keyboard I'm handling, what's the point?
             return false;
 
-        if (areTouchesDisabled())
-            return super.onTouchEvent(me);
+        if (areTouchesDisabled()) return super.onTouchEvent(me);
 
         if (me.getAction() == MotionEvent.ACTION_DOWN) {
             mFirstTouchPoint.x = (int) me.getX();
@@ -239,7 +221,9 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
                 final int slide = getSlideDistance(me);
                 final int distance = slide & 0x00FF;// removing direction
                 if (distance > SLIDE_RATIO_FOR_GESTURE) {
-                    // gesture!!
+                    //cancelling the touch (since we handle this)
+                    disableTouchesTillFingersAreUp();
+                    //handling the gesture
                     switch (slide & 0xFF00) {
                         case DIRECTION_DOWN:
                             mKeyboardActionListener.onSwipeDown(true);
@@ -254,11 +238,9 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
                             mKeyboardActionListener.onSwipeRight(true, isAtTwoFingersState());
                             break;
                     }
-                } else {
-                    // just a key press
-                    super.onTouchEvent(me);
                 }
-                return true;
+                super.onTouchEvent(me);
+                return true;//handled
             }
 
         }
@@ -311,11 +293,9 @@ public class AnyKeyboardView extends AnyKeyboardBaseView {
             } else {
                 return super.onTouchEvent(me);
             }
-        } else if (mExtensionVisible
-                && me.getY() > mExtensionKeyboardYDismissPoint) {
+        } else if (mExtensionVisible && me.getY() > mExtensionKeyboardYDismissPoint) {
             // closing the popup
             dismissPopupKeyboard();
-
             return true;
         } else {
             return super.onTouchEvent(me);

@@ -1,5 +1,6 @@
 package com.anysoftkeyboard.ui.settings;
 
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -15,13 +16,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.anysoftkeyboard.utils.Log;
 import com.menny.android.anysoftkeyboard.R;
 
-import net.evendanan.pushingpixels.FragmentChauffeurActivity;
+import net.evendanan.chauffeur.lib.FragmentChauffeurActivity;
+import net.evendanan.chauffeur.lib.experiences.TransitionExperiences;
 
 import java.util.Calendar;
 
 public class AboutAnySoftKeyboardFragment extends Fragment {
+
+    private static final String TAG = "AboutAnySoftKeyboardFragment";
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -49,9 +54,15 @@ public class AboutAnySoftKeyboardFragment extends Fragment {
         view.findViewById(R.id.about_donate_paypal).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=9989122
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=9989122"));
-                getActivity().startActivity(intent);
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=KDYBGNUNMMN94&lc=US&item_name=AnySoftKeyboard&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted"));
+                try {
+                    getActivity().startActivity(intent);
+                } catch (ActivityNotFoundException e) {
+                    //this means that there is nothing on the device
+                    //that can handle Intent.ACTION_VIEW with "https" schema..
+                    //silently swallowing it
+                    Log.w(TAG, "Can not open '%' since there is nothing on the device that can handle it.", intent.getData());
+                }
             }
         });
     }
@@ -72,8 +83,7 @@ public class AboutAnySoftKeyboardFragment extends Fragment {
                     @Override
                     public void onClick(View widget) {
                         FragmentChauffeurActivity activity = (FragmentChauffeurActivity)getActivity();
-                        activity.addFragmentToUi(new AdditionalSoftwareLicensesFragment(),
-                                FragmentChauffeurActivity.FragmentUiContext.DeeperExperience);
+                        activity.addFragmentToUi(new AdditionalSoftwareLicensesFragment(), TransitionExperiences.DEEPER_EXPERIENCE_TRANSITION);
                     }
                 },
                 0, additionalSoftware.getText().length(),

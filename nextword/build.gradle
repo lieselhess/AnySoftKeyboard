@@ -1,22 +1,25 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 22
-    buildToolsVersion "22.0.1"
+    compileSdkVersion sdkCompileVersion
+    buildToolsVersion androidBuildTools
 
     defaultConfig {
-        minSdkVersion 7
-        targetSdkVersion 22
+        minSdkVersion sdkMinimumVersion
+        targetSdkVersion sdkTargetVersion
         versionCode 1
         versionName "1.0"
+        /*ndk {
+            moduleName "anysoftkey_next_word_jni"
+        }*/
     }
 }
 
 dependencies {
     repositories {
         mavenCentral()
+        maven { url "https://jitpack.io" }
     }
-    compile 'com.android.support:appcompat-v7:22.2.1'
-    compile 'net.evendanan.anysoftkeyboard:api:1.2.3'
+    compile "com.github.AnySoftKeyboard:AnySoftKeyboard-API:$AnySoftKeyboardApiVersion"
     compile project(':base')
 }

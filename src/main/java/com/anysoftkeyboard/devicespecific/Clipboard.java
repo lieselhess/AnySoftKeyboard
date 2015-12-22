@@ -24,7 +24,7 @@ import net.evendanan.frankenrobot.Diagram;
 
 @IndirectlyInstantiated
 public interface Clipboard {
-    public static class ClipboardDiagram extends Diagram<Clipboard> {
+    class ClipboardDiagram extends Diagram<Clipboard> {
         private final Context mContext;
 
         public ClipboardDiagram(Context context) {
@@ -36,7 +36,7 @@ public interface Clipboard {
         }
     }
 
-    CharSequence getText();
-
+    CharSequence getText(int entryIndex);
+    int getClipboardEntriesCount();
     void setText(CharSequence text);
 }
