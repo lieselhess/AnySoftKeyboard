@@ -122,7 +122,7 @@ public class AnySoftKeyboard extends InputMethodService implements
     private static final String KEYBOARD_NOTIFICATION_ALWAYS = "1";
     private static final String KEYBOARD_NOTIFICATION_ON_PHYSICAL = "2";
     private static final String KEYBOARD_NOTIFICATION_NEVER = "3";
-    private static final long ONE_FRAME_DELAY = 1000l / 60l;
+    private static final long ONE_FRAME_DELAY = 1000L / 60L;
     private static final long CLOSE_DICTIONARIES_DELAY = 5 * ONE_FRAME_DELAY;
 
     private final AskPrefs mAskPrefs;
@@ -244,9 +244,8 @@ public class AnySoftKeyboard extends InputMethodService implements
     @Override
     public void onCreate() {
         super.onCreate();
-        mPrefs = PreferenceManager
-                .getDefaultSharedPreferences(getApplicationContext());
-        if (DeveloperUtils.hasTracingRequested(getApplicationContext())) {
+        mPrefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        if ((!BuildConfig.DEBUG) && DeveloperUtils.hasTracingRequested(getApplicationContext())) {
             try {
                 DeveloperUtils.startTracing();
                 Toast.makeText(getApplicationContext(),
@@ -2735,8 +2734,13 @@ public class AnySoftKeyboard extends InputMethodService implements
     public void onPress(int primaryCode) {
         InputConnection ic = getCurrentInputConnection();
         Log.d(TAG, "onPress:" + primaryCode);
-        if (mVibrationDuration > 0 && primaryCode != 0 && mVibrator != null && mVibrator.hasVibrator()) {
-            mVibrator.vibrate(mVibrationDuration);
+        if (mVibrationDuration > 0 && primaryCode != 0 && mVibrator != null) {
+            try {
+                mVibrator.vibrate(mVibrationDuration);
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to interact with vibrator! Disabling for now.");
+                mVibrationDuration = 0;
+            }
         }
 
         if (primaryCode == KeyCodes.SHIFT) {
