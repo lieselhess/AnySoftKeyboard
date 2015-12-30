@@ -58,10 +58,12 @@ import android.widget.Toast;
 
 import com.anysoftkeyboard.LayoutSwitchAnimationListener.AnimationType;
 import com.anysoftkeyboard.api.KeyCodes;
+import com.anysoftkeyboard.base.dictionaries.EditableDictionary;
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
+import com.anysoftkeyboard.base.utils.GCUtils;
+import com.anysoftkeyboard.base.utils.GCUtils.MemRelatedOperation;
 import com.anysoftkeyboard.devicespecific.Clipboard;
 import com.anysoftkeyboard.dictionaries.DictionaryAddOnAndBuilder;
-import com.anysoftkeyboard.base.dictionaries.EditableDictionary;
 import com.anysoftkeyboard.dictionaries.ExternalDictionaryFactory;
 import com.anysoftkeyboard.dictionaries.Suggest;
 import com.anysoftkeyboard.dictionaries.TextEntryState;
@@ -90,8 +92,6 @@ import com.anysoftkeyboard.theme.KeyboardThemeFactory;
 import com.anysoftkeyboard.ui.VoiceInputNotInstalledActivity;
 import com.anysoftkeyboard.ui.dev.DeveloperUtils;
 import com.anysoftkeyboard.ui.settings.MainSettingsActivity;
-import com.anysoftkeyboard.base.utils.GCUtils;
-import com.anysoftkeyboard.base.utils.GCUtils.MemRelatedOperation;
 import com.anysoftkeyboard.utils.Log;
 import com.anysoftkeyboard.utils.ModifierKeyState;
 import com.anysoftkeyboard.utils.Workarounds;
@@ -503,6 +503,8 @@ public class AnySoftKeyboard extends InputMethodService implements
         // Starting a new log line
         mLogger.startLine();
         Log.i(LoggerUtil.TAG, "Writing new timestamp!");
+        // Clear wordBuffer
+        wordBuffer.clearBuffer(true);
 
         mInputView.dismissPopupKeyboard();
         mInputView.setKeyboardActionType(attribute.imeOptions);
@@ -648,6 +650,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                                   int newSelStart, int newSelEnd, int candidatesStart,
                                   int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
+        wordBuffer.setCursorPositions(newSelStart, newSelEnd);
 
         Log.d(TAG, "onUpdateSelection: oss=" + oldSelStart + ", ose="
                 + oldSelEnd + ", nss=" + newSelStart + ", nse=" + newSelEnd
@@ -1297,6 +1300,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             if (mWord.length() > 0) {
                 if (inputConnection != null) {
                     inputConnection.commitText(mWord.getTypedWord(), 1);
+                    wordBuffer.submitInput(mWord.getTypedWord().toString());
                 }
                 mCommittedLength = mWord.length();
                 mCommittedWord = mWord.getTypedWord();
@@ -1329,7 +1333,9 @@ public class AnySoftKeyboard extends InputMethodService implements
                 && mSentenceSeparators.contains(lastTwo.charAt(1))) {
             ic.beginBatchEdit();
             ic.deleteSurroundingText(2, 0);
+            wordBuffer.deleteSurroundingText(2, 0);
             ic.commitText(lastTwo.charAt(1) + " ", 1);
+            wordBuffer.submitInput(lastTwo.charAt(1) + " ");
             ic.endBatchEdit();
             mJustAddedAutoSpace = true;
             Log.d(TAG, "swapPunctuationAndSpace: YES");
@@ -1347,7 +1353,9 @@ public class AnySoftKeyboard extends InputMethodService implements
                 && lastThree.charAt(2) == '.') {
             ic.beginBatchEdit();
             ic.deleteSurroundingText(3, 0);
+            wordBuffer.deleteSurroundingText(3, 0);
             ic.commitText(".. ", 1);
+            wordBuffer.submitInput(".. ");
             ic.endBatchEdit();
         }
     }
@@ -1366,7 +1374,9 @@ public class AnySoftKeyboard extends InputMethodService implements
                 && lastThree.charAt(2) == KeyCodes.SPACE) {
             ic.beginBatchEdit();
             ic.deleteSurroundingText(2, 0);
+            wordBuffer.deleteSurroundingText(2, 0);
             ic.commitText(". ", 1);
+            wordBuffer.submitInput(". ");
             ic.endBatchEdit();
             mJustAddedAutoSpace = true;
             return true;
@@ -1383,6 +1393,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         if (lastOne != null && lastOne.length() == 1
                 && lastOne.charAt(0) == KeyCodes.SPACE) {
             ic.deleteSurroundingText(1, 0);
+            wordBuffer.deleteSurroundingText(1, 0);
         }
     }
 
@@ -1479,6 +1490,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     ic.beginBatchEdit();
                     commitTyped(ic);
                     ic.deleteSurroundingText(Integer.MAX_VALUE, Integer.MAX_VALUE);
+                    wordBuffer.clearBuffer(false);
                     ic.endBatchEdit();
                 }
                 break;
@@ -1686,6 +1698,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                             sendTab();
                         } else {
                             ic.commitText(Character.toString((char) controlCode), 1);
+                            wordBuffer.submitInput(Character.toString((char) controlCode));
                         }
                     } else {
                         handleCharacter(primaryCode, key, multiTapIndex,
@@ -1879,6 +1892,7 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     public void onText(Key key, CharSequence text) {
+        // TODO: Figure out if the text here should be recorded.
         Log.d(TAG, "onText: '%s'", text);
         InputConnection ic = getCurrentInputConnection();
         if (ic == null)
@@ -1909,6 +1923,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             CharSequence cs = ic.getTextBeforeCursor(onTextLength, 0);
             if (onTextText.equals(cs)) {
                 ic.deleteSurroundingText(onTextLength, 0);
+                wordBuffer.deleteSurroundingText(onTextLength, 0);
                 return true;
             }
         }
@@ -1977,6 +1992,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             idx--;
         }
         ic.deleteSurroundingText(inputLength - idx, 0);// it is always > 0 !
+        wordBuffer.deleteSurroundingText(inputLength - idx, 0);
     }
 
     private void handleDeleteLastCharacter(boolean forMultiTap) {
@@ -1990,6 +2006,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             final boolean wordManipulation = mWord.length() > 0
                     && mWord.cursorPosition() > 0;
             if (wordManipulation) {
+                final String prevWord = mWord.getTypedWord().toString();
                 mWord.deleteLast();
                 final int cursorPosition;
                 if (mWord.cursorPosition() != mWord.length())
@@ -2001,6 +2018,8 @@ public class AnySoftKeyboard extends InputMethodService implements
                     ic.beginBatchEdit();
 
                 ic.setComposingText(mWord.getTypedWord(), 1);
+                //wordBuffer.replaceLastInput(mWord.getTypedWord());
+                wordBuffer.submitInput(mWord.getTypedWord(), prevWord);
                 if (mWord.length() == 0) {
                     mPredicting = false;
                 } else if (cursorPosition >= 0) {
@@ -2013,6 +2032,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 postUpdateSuggestions();
             } else {
                 ic.deleteSurroundingText(1, 0);
+                wordBuffer.deleteSurroundingText(1, 0);
             }
         } else {
             deleteChar = true;
@@ -2047,6 +2067,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     final int textLengthBeforeDelete = (TextUtils.isEmpty(beforeText)) ? 0 : beforeText.length();
                     if (textLengthBeforeDelete > 0) {
                         ic.deleteSurroundingText(1, 0);
+                        wordBuffer.deleteSurroundingText(1, 0);
                         // TODO: Move this and other similar calls into LoggerUtil for easy reference.
                         try {
                             Log.d(LoggerUtil.class.getSimpleName(), "Writing backspace [{bs}]");
