@@ -19,7 +19,7 @@ public class WordBufferLogger {
     private final LoggerUtil log;
     private final StringBuilder lineBuffer = new StringBuilder();
 
-    private boolean loggingIsEnabled;
+    private boolean privacyModeEnabled;
     private int cursorStart, cursorEnd;
 
     private String prevInput = "";
@@ -35,20 +35,25 @@ public class WordBufferLogger {
         this.log = log;
     }
 
+    public void startNewLine(final EditorInfo attribute) {
+        clearBuffer(true);
+        setupPrivacyMode(attribute);
+    }
+
     /**
      * Check the current EditorInfo object for the potential for sensitive data entry.
      * If detected, the log will be disabled for this text-entry session.
      *
      * @param attribute the attributes object of the focused text-input view.
      */
-    public void determineEnabledState(final EditorInfo attribute) {
+    private void setupPrivacyMode(final EditorInfo attribute) {
 
         final int editorClass = attribute.inputType & EditorInfo.TYPE_MASK_CLASS;
         switch (editorClass) {
             case EditorInfo.TYPE_CLASS_DATETIME:
             case EditorInfo.TYPE_CLASS_NUMBER:
             case EditorInfo.TYPE_CLASS_PHONE:
-                loggingIsEnabled = false;
+                privacyModeEnabled = true;
                 return;
         }
 
@@ -64,10 +69,10 @@ public class WordBufferLogger {
             case EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD:
             case EditorInfo.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS:
             case EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD:
-                loggingIsEnabled = false;
+                privacyModeEnabled = true;
                 return;
         }
-        loggingIsEnabled = true;
+        privacyModeEnabled = false;
     }
 
     public void clearBuffer(final boolean logBuffer) {
@@ -78,7 +83,7 @@ public class WordBufferLogger {
     }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
-        if (!loggingIsEnabled) {
+        if (privacyModeEnabled) {
             return;
         }
         this.cursorStart = cursorStart;
@@ -88,7 +93,7 @@ public class WordBufferLogger {
     // TODO: submitInput methods need to take cursor position in to account.
     public void submitInput(final String input) {
         Log.d(TAG, "submitInput("+input+")");
-        if (!loggingIsEnabled) {
+        if (privacyModeEnabled) {
             return;
         }
         prevInput = input;
@@ -102,7 +107,7 @@ public class WordBufferLogger {
 
     public void submitInput(final String corrected, final String untouched) {
         Log.d(TAG, "submitInput("+corrected+", "+ untouched+")");
-        if (!loggingIsEnabled) {
+        if (privacyModeEnabled) {
             return;
         }
         prevInput = corrected;
@@ -115,7 +120,7 @@ public class WordBufferLogger {
     }
 
     public void replaceLastInput(final String replaceWith) {
-        if (!loggingIsEnabled) {
+        if (privacyModeEnabled) {
             return;
         }
         submitInput(prevInput, replaceWith);
@@ -126,7 +131,7 @@ public class WordBufferLogger {
     }
 
     public void deleteSurroundingText(final int lengthBefore, final int lengthAfter) {
-        if (!loggingIsEnabled) {
+        if (privacyModeEnabled) {
             return;
         }
         int deleteStart = cursorStart - lengthBefore + 1;
@@ -142,7 +147,7 @@ public class WordBufferLogger {
 
     public void revertLastInput() {
         Log.d(TAG, "revertLastInput()");
-        if (!loggingIsEnabled) {
+        if (privacyModeEnabled) {
             return;
         }
         lineBuffer.setLength(lineBuffer.length() - prevInput.length());
