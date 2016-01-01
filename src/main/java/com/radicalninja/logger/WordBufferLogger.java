@@ -35,8 +35,15 @@ public class WordBufferLogger {
         this.log = log;
     }
 
-    public void startNewLine(final EditorInfo attribute) {
-        clearBuffer(true);
+    /**
+     * Reset the line buffer for a new text-input session.
+     *
+     * @param attribute The EditorInfo object of the current text input view.
+     * @param logBuffer Whether or not the current buffer contents should be logged
+     *                  before being cleared.
+     */
+    public void startNewLine(final EditorInfo attribute, final boolean logBuffer) {
+        clearBuffer(logBuffer);
         setupPrivacyMode(attribute);
     }
 
@@ -75,7 +82,13 @@ public class WordBufferLogger {
         privacyModeEnabled = false;
     }
 
-    public void clearBuffer(final boolean logBuffer) {
+    /**
+     * Clear the buffer out and start fresh. Has the option to write the current buffer
+     * to the log if it's not empty.
+     *
+     * @param logBuffer If the buffer is not empty, write the contents to the log before clearing.
+     */
+    private void clearBuffer(final boolean logBuffer) {
         if (logBuffer && log != null && lineBuffer.length() > 0) {
             // TODO: Log lineBuffer to the LoggerUtil with timestamp
         }
