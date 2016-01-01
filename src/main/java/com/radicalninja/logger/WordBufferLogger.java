@@ -1,5 +1,7 @@
 package com.radicalninja.logger;
 
+import android.view.inputmethod.EditorInfo;
+
 import com.anysoftkeyboard.utils.Log;
 
 /**
@@ -17,6 +19,7 @@ public class WordBufferLogger {
     private final LoggerUtil log;
     private final StringBuilder lineBuffer = new StringBuilder();
 
+    private boolean loggingIsEnabled;
     private int cursorStart, cursorEnd;
 
     private String prevInput = "";
@@ -32,7 +35,52 @@ public class WordBufferLogger {
         this.log = log;
     }
 
+    /**
+     * Check the current EditorInfo object for the potential for sensitive data entry.
+     * If detected, the log will be disabled for this text-entry session.
+     *
+     * @param attribute the attributes object of the focused text-input view.
+     */
+    public void determineEnabledState(final EditorInfo attribute) {
+
+        final int editorClass = attribute.inputType & EditorInfo.TYPE_MASK_CLASS;
+        switch (editorClass) {
+            case EditorInfo.TYPE_CLASS_DATETIME:
+            case EditorInfo.TYPE_CLASS_NUMBER:
+            case EditorInfo.TYPE_CLASS_PHONE:
+                loggingIsEnabled = false;
+                return;
+        }
+
+        final int variation = attribute.inputType & EditorInfo.TYPE_MASK_VARIATION;
+        switch (variation) {
+            case EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS:
+            case EditorInfo.TYPE_TEXT_VARIATION_EMAIL_SUBJECT:
+            case EditorInfo.TYPE_TEXT_VARIATION_FILTER:
+            case EditorInfo.TYPE_TEXT_VARIATION_PASSWORD:
+            case EditorInfo.TYPE_TEXT_VARIATION_PERSON_NAME:
+            case EditorInfo.TYPE_TEXT_VARIATION_POSTAL_ADDRESS:
+            case EditorInfo.TYPE_TEXT_VARIATION_URI:
+            case EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD:
+            case EditorInfo.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS:
+            case EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD:
+                loggingIsEnabled = false;
+                return;
+        }
+        loggingIsEnabled = true;
+    }
+
+    public void clearBuffer(final boolean logBuffer) {
+        if (logBuffer && log != null && lineBuffer.length() > 0) {
+            // TODO: Log lineBuffer to the LoggerUtil with timestamp
+        }
+        lineBuffer.delete(0, lineBuffer.length());
+    }
+
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
+        if (!loggingIsEnabled) {
+            return;
+        }
         this.cursorStart = cursorStart;
         this.cursorEnd = cursorEnd;
     }
@@ -40,6 +88,9 @@ public class WordBufferLogger {
     // TODO: submitInput methods need to take cursor position in to account.
     public void submitInput(final String input) {
         Log.d(TAG, "submitInput("+input+")");
+        if (!loggingIsEnabled) {
+            return;
+        }
         prevInput = input;
         prevInputUntouched = "";
         lineBuffer.append(input);
@@ -51,6 +102,9 @@ public class WordBufferLogger {
 
     public void submitInput(final String corrected, final String untouched) {
         Log.d(TAG, "submitInput("+corrected+", "+ untouched+")");
+        if (!loggingIsEnabled) {
+            return;
+        }
         prevInput = corrected;
         prevInputUntouched = untouched;
         lineBuffer.append(corrected);
@@ -61,6 +115,9 @@ public class WordBufferLogger {
     }
 
     public void replaceLastInput(final String replaceWith) {
+        if (!loggingIsEnabled) {
+            return;
+        }
         submitInput(prevInput, replaceWith);
     }
 
@@ -69,6 +126,9 @@ public class WordBufferLogger {
     }
 
     public void deleteSurroundingText(final int lengthBefore, final int lengthAfter) {
+        if (!loggingIsEnabled) {
+            return;
+        }
         int deleteStart = cursorStart - lengthBefore + 1;
         if (deleteStart < 0) {
             deleteStart = 0;
@@ -80,16 +140,12 @@ public class WordBufferLogger {
         lineBuffer.delete(deleteStart, deleteEnd);
     }
 
-    public void clearBuffer(final boolean logBuffer) {
-        if (logBuffer && log != null && lineBuffer.length() > 0) {
-            // TODO: Log lineBuffer to the LoggerUtil with timestamp
-        }
-        lineBuffer.delete(0, lineBuffer.length());
-    }
-
     public void revertLastInput() {
         Log.d(TAG, "revertLastInput()");
-        lineBuffer.setLength(lineBuffer.length() - prevInput.length();
+        if (!loggingIsEnabled) {
+            return;
+        }
+        lineBuffer.setLength(lineBuffer.length() - prevInput.length());
         lineBuffer.append(prevInputUntouched);
     }
 }

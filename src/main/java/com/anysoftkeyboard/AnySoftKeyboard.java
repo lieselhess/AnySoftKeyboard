@@ -503,8 +503,9 @@ public class AnySoftKeyboard extends InputMethodService implements
         // Starting a new log line
         mLogger.startLine();
         Log.i(LoggerUtil.TAG, "Writing new timestamp!");
-        // Clear wordBuffer
+        // Restarting the WordBufferLogger.
         wordBuffer.clearBuffer(true);
+        wordBuffer.determineEnabledState(attribute);
 
         mInputView.dismissPopupKeyboard();
         mInputView.setKeyboardActionType(attribute.imeOptions);
