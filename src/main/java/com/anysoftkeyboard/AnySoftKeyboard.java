@@ -1490,7 +1490,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     ic.beginBatchEdit();
                     commitTyped(ic);
                     ic.deleteSurroundingText(Integer.MAX_VALUE, Integer.MAX_VALUE);
-                    wordBuffer.clearBuffer(false);
+                    wordBuffer.clearBuffer();
                     ic.endBatchEdit();
                 }
                 break;

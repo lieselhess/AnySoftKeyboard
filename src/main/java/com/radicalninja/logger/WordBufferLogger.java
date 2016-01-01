@@ -36,7 +36,7 @@ public class WordBufferLogger {
     }
 
     /**
-     * Reset the line buffer for a new text-input session.
+     * Reset the line buffer for a new line session.
      *
      * @param attribute The EditorInfo object of the current text input view.
      * @param logBuffer Whether or not the current buffer contents should be logged
@@ -49,7 +49,7 @@ public class WordBufferLogger {
 
     /**
      * Check the current EditorInfo object for the potential for sensitive data entry.
-     * If detected, the log will be disabled for this text-entry session.
+     * If detected, the log will be disabled for this line session.
      *
      * @param attribute the attributes object of the focused text-input view.
      */
@@ -93,6 +93,13 @@ public class WordBufferLogger {
             // TODO: Log lineBuffer to the LoggerUtil with timestamp
         }
         lineBuffer.delete(0, lineBuffer.length());
+    }
+
+    /**
+     * Clear the buffer contents without resetting the line session.
+     */
+    public void clearBuffer() {
+        clearBuffer(false);
     }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
