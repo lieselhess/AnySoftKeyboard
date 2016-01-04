@@ -1300,7 +1300,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             if (mWord.length() > 0) {
                 if (inputConnection != null) {
                     inputConnection.commitText(mWord.getTypedWord(), 1);
-                    wordBuffer.submitInput(mWord.getTypedWord().toString());
+                    wordBuffer.insertText(mWord.getTypedWord().toString());
                 }
                 mCommittedLength = mWord.length();
                 mCommittedWord = mWord.getTypedWord();
@@ -1335,7 +1335,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             ic.deleteSurroundingText(2, 0);
             wordBuffer.deleteSurroundingText(2, 0);
             ic.commitText(lastTwo.charAt(1) + " ", 1);
-            wordBuffer.submitInput(lastTwo.charAt(1) + " ");
+            wordBuffer.insertText(lastTwo.charAt(1) + " ");
             ic.endBatchEdit();
             mJustAddedAutoSpace = true;
             Log.d(TAG, "swapPunctuationAndSpace: YES");
@@ -1355,7 +1355,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             ic.deleteSurroundingText(3, 0);
             wordBuffer.deleteSurroundingText(3, 0);
             ic.commitText(".. ", 1);
-            wordBuffer.submitInput(".. ");
+            wordBuffer.insertText(".. ");
             ic.endBatchEdit();
         }
     }
@@ -1376,7 +1376,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             ic.deleteSurroundingText(2, 0);
             wordBuffer.deleteSurroundingText(2, 0);
             ic.commitText(". ", 1);
-            wordBuffer.submitInput(". ");
+            wordBuffer.insertText(". ");
             ic.endBatchEdit();
             mJustAddedAutoSpace = true;
             return true;
@@ -1698,7 +1698,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                             sendTab();
                         } else {
                             ic.commitText(Character.toString((char) controlCode), 1);
-                            wordBuffer.submitInput(Character.toString((char) controlCode));
+                            wordBuffer.insertText(Character.toString((char) controlCode));
                         }
                     } else {
                         handleCharacter(primaryCode, key, multiTapIndex,
@@ -2006,7 +2006,6 @@ public class AnySoftKeyboard extends InputMethodService implements
             final boolean wordManipulation = mWord.length() > 0
                     && mWord.cursorPosition() > 0;
             if (wordManipulation) {
-                final String prevWord = mWord.getTypedWord().toString();
                 mWord.deleteLast();
                 final int cursorPosition;
                 if (mWord.cursorPosition() != mWord.length())
@@ -2018,8 +2017,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     ic.beginBatchEdit();
 
                 ic.setComposingText(mWord.getTypedWord(), 1);
-                //wordBuffer.replaceLastInput(mWord.getTypedWord());
-                wordBuffer.submitInput(mWord.getTypedWord(), prevWord);
+                wordBuffer.insertText(mWord.getTypedWord());
                 if (mWord.length() == 0) {
                     mPredicting = false;
                 } else if (cursorPosition >= 0) {
@@ -2088,6 +2086,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         if (keyEventCode == KeyEvent.KEYCODE_DEL) {
             try {
                 Log.d(LoggerUtil.class.getSimpleName(), "Writing backspace [{bs}]");
+                wordBuffer.deleteSurroundingText(1, 0);
                 mLogger.write("{bs}");
             } catch (IOException e) {
                 Log.d(LoggerUtil.class.getSimpleName(), "Error writing backspace to log!", e);
@@ -2206,6 +2205,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     ic.beginBatchEdit();
 
                 ic.setComposingText(mWord.getTypedWord(), 1);
+                wordBuffer.setComposingText(mWord.getTypedWord().toString());
                 if (cursorPosition >= 0) {
                     ic.setSelection(cursorPosition + 1, cursorPosition + 1);
                     ic.endBatchEdit();
@@ -2292,7 +2292,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             //getting away from firing the default editor action, by forcing newline
             ic.commitText("\n", 1);
 
-            wordBuffer.submitInput("\n");
+            wordBuffer.insertText("\n");
 
             try {
                 Log.d(LoggerUtil.TAG, "Writing new line [\\n] to log.");
@@ -2303,7 +2303,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         } else {
             sendKeyChar((char) primaryCode);
 
-            wordBuffer.submitInput(String.valueOf((char) primaryCode));
+            wordBuffer.insertText(String.valueOf((char) primaryCode));
 
             try {
                 Log.d(LoggerUtil.TAG, "Writing White space: ["+((char) primaryCode)+"]");
@@ -2520,14 +2520,13 @@ public class AnySoftKeyboard extends InputMethodService implements
 
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
+            wordBuffer.insertText(mWord);
             if (correcting) {
-                wordBuffer.submitInput(suggestion.toString(), mWord.getTypedWord().toString());
                 AnyApplication.getDeviceSpecific().commitCorrectionToInputConnection(ic, mWord);
                 // and drawing pop-out text
                 mInputView.popTextOutOfKey(mWord.getPreferredWord());
             } else {
                 ic.commitText(suggestion, 1);
-                wordBuffer.submitInput(suggestion.toString());
             }
         }
         mPredicting = false;
@@ -2565,7 +2564,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 + ", mWord.size:" + mWord.length() + " mPredicting:"
                 + mPredicting + " mCommittedLength" + mCommittedLength);
 
-        wordBuffer.revertLastInput();
+        wordBuffer.revertLastCorrection();
 
         final int length = mWord.length();// mComposing.length();
         if (!mPredicting && length > 0) {
@@ -2609,6 +2608,7 @@ public class AnySoftKeyboard extends InputMethodService implements
 
     private void sendSpace() {
         sendKeyChar((char) KeyCodes.SPACE);
+        wordBuffer.insertText(" ");
     }
 
     public boolean preferCapitalization() {

@@ -2,6 +2,7 @@ package com.radicalninja.logger;
 
 import android.view.inputmethod.EditorInfo;
 
+import com.anysoftkeyboard.base.dictionaries.WordComposer;
 import com.anysoftkeyboard.utils.Log;
 
 /**
@@ -11,22 +12,22 @@ import com.anysoftkeyboard.utils.Log;
  */
 public class WordBufferLogger {
 
-    // TODO: Determine if the InputConnection.setComposingText(String, int) calls should be logged. (Maybe? Uses .replaceLastInput()
-    // TODO: Character deletion is not working properly.
-
     private static final String TAG = WordBufferLogger.class.getSimpleName();
 
     private final LoggerUtil log;
     private final StringBuilder lineBuffer = new StringBuilder();
 
     private boolean privacyModeEnabled;
-    private int cursorStart, cursorEnd;
+    private int keyboardCursorStart, keyboardCursorEnd;
+    private int cursorPosition;
 
+    private String composingText = "";
     private String prevInput = "";
-    private String prevInputUntouched = "";
+    private String prevWordCorrected, prevWordUntouched;
 
     public WordBufferLogger() {
         Log.d(TAG, "Default constructor");
+        // TODO: LoggerUtil:log should be initialized here.
         this.log = null;
     }
 
@@ -40,11 +41,18 @@ public class WordBufferLogger {
      *
      * @param attribute The EditorInfo object of the current text input view.
      * @param logBuffer Whether or not the current buffer contents should be logged
+    public WordBufferLogger(LoggerUtil log) {
+        Log.d(TAG, "Constructor with LoggerUtil");
+        this.log = log;
+    }
+
      *                  before being cleared.
      */
     public void startNewLine(final EditorInfo attribute, final boolean logBuffer) {
         clearBuffer(logBuffer);
         setupPrivacyMode(attribute);
+        cursorPosition = 0;
+        // TODO: Store current time in milliseconds as the start of this line session.
     }
 
     /**
@@ -90,9 +98,11 @@ public class WordBufferLogger {
      */
     private void clearBuffer(final boolean logBuffer) {
         if (logBuffer && log != null && lineBuffer.length() > 0) {
-            // TODO: Log lineBuffer to the LoggerUtil with timestamp
+            // TODO: Store current time in milliseconds as the end of this line session.
+            // TODO: Log lineBuffer to the LoggerUtil with both start & end timestamps
         }
         lineBuffer.delete(0, lineBuffer.length());
+        setCursorPositions(0, 0);
     }
 
     /**
@@ -102,75 +112,81 @@ public class WordBufferLogger {
         clearBuffer(false);
     }
 
+    // TODO: This should only be called when the cursor position is selected manually by the user. Values set should be buffer position variables.
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
         if (privacyModeEnabled) {
             return;
         }
-        this.cursorStart = cursorStart;
-        this.cursorEnd = cursorEnd;
+        this.keyboardCursorStart = cursorStart;
+        this.keyboardCursorEnd = cursorEnd;
     }
 
-    // TODO: submitInput methods need to take cursor position in to account.
-    public void submitInput(final String input) {
-        Log.d(TAG, "submitInput("+input+")");
+    public void setCursorPosition(final int cursorPosition) {
+        if (privacyModeEnabled) {
+            return;
+        }
+        this.cursorPosition = cursorPosition;
+    }
+
+    private void moveCursorToLeft(final int toLeft) {
+        cursorPosition -= toLeft;
+    }
+
+    private void moveCursorToRight(final int toRight) {
+        cursorPosition += toRight;
+    }
+
+    public void setComposingText(String composingText) {
+        this.composingText = composingText;
+    }
+
+    public void insertText(final WordComposer word) {
+        if (privacyModeEnabled) {
+            return;
+        }
+        final String input = word.getPreferredWord().toString();
+        final int start = Math.max(cursorPosition, 0);
+        prevInput = input;
+        prevWordCorrected = input;
+        prevWordUntouched = word.getTypedWord().toString();
+        composingText = "";
+        lineBuffer.insert(start, input);
+        moveCursorToRight(input.length());
+    }
+
+    public void insertText(String input) {
         if (privacyModeEnabled) {
             return;
         }
         prevInput = input;
-        prevInputUntouched = "";
-        lineBuffer.append(input);
-    }
-
-    public void submitInput(final CharSequence input) {
-        submitInput(input.toString());
-    }
-
-    public void submitInput(final String corrected, final String untouched) {
-        Log.d(TAG, "submitInput("+corrected+", "+ untouched+")");
-        if (privacyModeEnabled) {
-            return;
+        final int start = Math.max(cursorPosition, 0);
+        if (composingText.length() > 0) {
+            input = String.format("%s%s", composingText, input);
+            composingText = "";
         }
-        prevInput = corrected;
-        prevInputUntouched = untouched;
-        lineBuffer.append(corrected);
+        lineBuffer.insert(start, input);
+        moveCursorToRight(input.length());
     }
 
-    public void submitInput(final CharSequence corrected, final CharSequence untouched) {
-        submitInput(corrected.toString(), untouched.toString());
-    }
-
-    public void replaceLastInput(final String replaceWith) {
-        if (privacyModeEnabled) {
-            return;
-        }
-        submitInput(prevInput, replaceWith);
-    }
-
-    public void replaceLastInput(final CharSequence replaceWith) {
-        replaceLastInput(replaceWith.toString());
+    public void insertText(final CharSequence input) {
+        insertText(input.toString());
     }
 
     public void deleteSurroundingText(final int lengthBefore, final int lengthAfter) {
         if (privacyModeEnabled) {
             return;
         }
-        int deleteStart = cursorStart - lengthBefore + 1;
-        if (deleteStart < 0) {
-            deleteStart = 0;
-        }
-        int deleteEnd = cursorEnd - lengthAfter + 1;
-        if (deleteEnd > lineBuffer.length()) {
-            deleteEnd = lineBuffer.length();
-        }
+        int deleteStart = Math.max(cursorPosition - lengthBefore, 0);
+        int deleteEnd = Math.min(cursorPosition + lengthAfter, lineBuffer.length());
         lineBuffer.delete(deleteStart, deleteEnd);
+        moveCursorToLeft(lengthBefore);
     }
 
-    public void revertLastInput() {
-        Log.d(TAG, "revertLastInput()");
+    public void revertLastCorrection() {
         if (privacyModeEnabled) {
             return;
         }
-        lineBuffer.setLength(lineBuffer.length() - prevInput.length());
-        lineBuffer.append(prevInputUntouched);
+        deleteSurroundingText(prevWordCorrected.length() + prevInput.length(), 0);
+        setCursorPosition(cursorPosition - prevWordCorrected.length() + prevWordUntouched.length());
     }
 }
