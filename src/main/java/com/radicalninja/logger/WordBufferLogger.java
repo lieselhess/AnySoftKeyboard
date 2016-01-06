@@ -1,5 +1,6 @@
 package com.radicalninja.logger;
 
+import android.content.Context;
 import android.view.inputmethod.EditorInfo;
 
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
@@ -19,21 +20,17 @@ public class WordBufferLogger {
 
     private boolean privacyModeEnabled;
     private int keyboardCursorStart, keyboardCursorEnd;
+    private int oldKeyboardCursorStart, oldKeyboardCursorEnd;
     private int cursorPosition;
 
     private String composingText = "";
     private String prevInput = "";
     private String prevWordCorrected, prevWordUntouched;
 
-    public WordBufferLogger() {
+    public WordBufferLogger(final Context context) {
         Log.d(TAG, "Default constructor");
         // TODO: LoggerUtil:log should be initialized here.
         this.log = null;
-    }
-
-    public WordBufferLogger(LoggerUtil log) {
-        Log.d(TAG, "Constructor with LoggerUtil");
-        this.log = log;
     }
 
     /**
@@ -41,17 +38,15 @@ public class WordBufferLogger {
      *
      * @param attribute The EditorInfo object of the current text input view.
      * @param logBuffer Whether or not the current buffer contents should be logged
-    public WordBufferLogger(LoggerUtil log) {
-        Log.d(TAG, "Constructor with LoggerUtil");
-        this.log = log;
-    }
-
      *                  before being cleared.
      */
     public void startNewLine(final EditorInfo attribute, final boolean logBuffer) {
         clearBuffer(logBuffer);
         setupPrivacyMode(attribute);
         cursorPosition = 0;
+        oldKeyboardCursorStart = oldKeyboardCursorEnd = 0;
+        keyboardCursorStart = keyboardCursorEnd = 0;
+        composingText = prevInput = "";
         // TODO: Store current time in milliseconds as the start of this line session.
     }
 
@@ -97,12 +92,13 @@ public class WordBufferLogger {
      * @param logBuffer If the buffer is not empty, write the contents to the log before clearing.
      */
     private void clearBuffer(final boolean logBuffer) {
-        if (logBuffer && log != null && lineBuffer.length() > 0) {
-            // TODO: Store current time in milliseconds as the end of this line session.
-            // TODO: Log lineBuffer to the LoggerUtil with both start & end timestamps
+        if (lineBuffer.length() > 0) {
+            if (logBuffer && log != null) {
+                // TODO: Log lineBuffer to the LoggerUtil with both start & end timestamps
+                // TODO: Store current time in milliseconds as the end of this line session.
+            }
+            lineBuffer.delete(0, lineBuffer.length());
         }
-        lineBuffer.delete(0, lineBuffer.length());
-        setCursorPositions(0, 0);
     }
 
     /**
@@ -112,13 +108,15 @@ public class WordBufferLogger {
         clearBuffer(false);
     }
 
-    // TODO: This should only be called when the cursor position is selected manually by the user. Values set should be buffer position variables.
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
-        if (privacyModeEnabled) {
+        if (privacyModeEnabled || cursorStart == cursorPosition) {
             return;
         }
-        this.keyboardCursorStart = cursorStart;
-        this.keyboardCursorEnd = cursorEnd;
+        oldKeyboardCursorStart = keyboardCursorStart;
+        //oldKeyboardCursorEnd = keyboardCursorEnd;
+        keyboardCursorStart = cursorStart;
+        //keyboardCursorEnd = cursorEnd;
+        updateCursorPosition(keyboardCursorStart);
     }
 
     public void setCursorPosition(final int cursorPosition) {
@@ -128,16 +126,47 @@ public class WordBufferLogger {
         this.cursorPosition = cursorPosition;
     }
 
+    private void updateCursorPosition(final int newCursorPosition) {
+        final int diff = oldKeyboardCursorStart - newCursorPosition;
+        if (diff > 1 || diff < -1) {
+            cursorPosition = newCursorPosition;
+        }
+    }
+
     private void moveCursorToLeft(final int toLeft) {
         cursorPosition -= toLeft;
+        updateCursorPosition(cursorPosition);
+    }
+
+    public void moveCursorToLeft() {
+        moveCursorToLeft(1);
     }
 
     private void moveCursorToRight(final int toRight) {
         cursorPosition += toRight;
+        updateCursorPosition(cursorPosition);
     }
 
-    public void setComposingText(String composingText) {
+    public void moveCursorToRight() {
+        moveCursorToRight(1);
+    }
+
+    public void moveCursorToStart() {
+        cursorPosition = 0;
+        oldKeyboardCursorStart = 0;
+    }
+
+    public void moveCursorToEnd() {
+        cursorPosition = lineBuffer.length();
+        oldKeyboardCursorStart = lineBuffer.length();
+    }
+
+    public void setComposingText(final String composingText) {
         this.composingText = composingText;
+    }
+
+    public void setComposingText(final CharSequence composingText) {
+        this.composingText = composingText.toString();
     }
 
     public void insertText(final WordComposer word) {
@@ -151,6 +180,7 @@ public class WordBufferLogger {
         prevWordUntouched = word.getTypedWord().toString();
         composingText = "";
         lineBuffer.insert(start, input);
+        oldKeyboardCursorStart = 0; // enforce
         moveCursorToRight(input.length());
     }
 
@@ -173,7 +203,7 @@ public class WordBufferLogger {
     }
 
     public void deleteSurroundingText(final int lengthBefore, final int lengthAfter) {
-        if (privacyModeEnabled) {
+        if (privacyModeEnabled || lengthBefore == lengthAfter) {
             return;
         }
         int deleteStart = Math.max(cursorPosition - lengthBefore, 0);

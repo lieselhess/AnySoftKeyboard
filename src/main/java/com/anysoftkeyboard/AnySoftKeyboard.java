@@ -302,7 +302,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         } catch (FileNotFoundException e) {
             Log.d(LoggerUtil.TAG, "Unable to open LoggerUtil file!", e);
         }
-        wordBuffer = new WordBufferLogger();
+        wordBuffer = new WordBufferLogger(getApplicationContext());
     }
 
     @NonNull
@@ -1521,9 +1521,11 @@ public class AnySoftKeyboard extends InputMethodService implements
                 handleControl();
                 break;
             case KeyCodes.ARROW_LEFT:
+                wordBuffer.moveCursorToLeft();
                 sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT);
                 break;
             case KeyCodes.ARROW_RIGHT:
+                wordBuffer.moveCursorToRight();
                 sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT);
                 break;
             case KeyCodes.ARROW_UP:
@@ -1533,6 +1535,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_DOWN);
                 break;
             case KeyCodes.MOVE_HOME:
+                wordBuffer.moveCursorToStart();
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
                     sendDownUpKeyEvents(0x0000007a/*API 11:KeyEvent.KEYCODE_MOVE_HOME*/);
                 } else {
@@ -1555,6 +1558,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 }
                 break;
             case KeyCodes.MOVE_END:
+                wordBuffer.moveCursorToEnd();
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
                     //API 11: KeyEvent.KEYCODE_MOVE_END
                     sendDownUpKeyEvents(0x0000007b);
@@ -2017,7 +2021,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     ic.beginBatchEdit();
 
                 ic.setComposingText(mWord.getTypedWord(), 1);
-                wordBuffer.insertText(mWord.getTypedWord());
+                wordBuffer.setComposingText(mWord.getTypedWord());
                 if (mWord.length() == 0) {
                     mPredicting = false;
                 } else if (cursorPosition >= 0) {
@@ -2234,6 +2238,12 @@ public class AnySoftKeyboard extends InputMethodService implements
         }
     }
 
+    @Override
+    public void sendKeyChar(char charCode) {
+        super.sendKeyChar(charCode);
+        wordBuffer.insertText(String.valueOf(charCode));
+    }
+
     private void handleSeparator(int primaryCode) {
         Log.d(TAG, "handleSeparator: " + primaryCode);
 
@@ -2302,8 +2312,6 @@ public class AnySoftKeyboard extends InputMethodService implements
             }
         } else {
             sendKeyChar((char) primaryCode);
-
-            wordBuffer.insertText(String.valueOf((char) primaryCode));
 
             try {
                 Log.d(LoggerUtil.TAG, "Writing White space: ["+((char) primaryCode)+"]");
@@ -2608,7 +2616,6 @@ public class AnySoftKeyboard extends InputMethodService implements
 
     private void sendSpace() {
         sendKeyChar((char) KeyCodes.SPACE);
-        wordBuffer.insertText(" ");
     }
 
     public boolean preferCapitalization() {
