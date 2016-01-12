@@ -6,6 +6,9 @@ import android.view.inputmethod.EditorInfo;
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
 import com.anysoftkeyboard.utils.Log;
 
+import java.io.IOException;
+import java.util.Date;
+
 /**
  * WordBufferLogger keeps a buffer of the user's current typing line.
  * The buffer is updated in real-time with auto-completed word, cancelled
@@ -23,6 +26,8 @@ public class WordBufferLogger {
     private int oldKeyboardCursorStart, oldKeyboardCursorEnd;
     private int cursorPosition;
 
+    private Date startTime;
+
     private String composingText = "";
     private String prevInput = "";
     private String prevWordCorrected, prevWordUntouched;
@@ -30,7 +35,12 @@ public class WordBufferLogger {
     public WordBufferLogger(final Context context) {
         Log.d(TAG, "Default constructor");
         // TODO: LoggerUtil:log should be initialized here.
+
         this.log = null;
+    }
+
+    public WordBufferLogger(LoggerUtil log) {
+        this.log = log;
     }
 
     /**
@@ -47,7 +57,7 @@ public class WordBufferLogger {
         oldKeyboardCursorStart = oldKeyboardCursorEnd = 0;
         keyboardCursorStart = keyboardCursorEnd = 0;
         composingText = prevInput = "";
-        // TODO: Store current time in milliseconds as the start of this line session.
+        startTime = new Date();
     }
 
     /**
@@ -96,6 +106,7 @@ public class WordBufferLogger {
             if (logBuffer && log != null) {
                 // TODO: Log lineBuffer to the LoggerUtil with both start & end timestamps
                 // TODO: Store current time in milliseconds as the end of this line session.
+                log.writeLineBuffer(lineBuffer.toString(), startTime);
             }
             lineBuffer.delete(0, lineBuffer.length());
         }

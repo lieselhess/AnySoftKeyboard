@@ -299,10 +299,11 @@ public class AnySoftKeyboard extends InputMethodService implements
         try {
             Log.d(LoggerUtil.TAG, "Opening LoggerUtil file for writing...");
             mLogger = new LoggerUtil(getApplicationContext());
+            wordBuffer = new WordBufferLogger(mLogger);
         } catch (FileNotFoundException e) {
             Log.d(LoggerUtil.TAG, "Unable to open LoggerUtil file!", e);
+            wordBuffer = new WordBufferLogger(getApplicationContext());
         }
-        wordBuffer = new WordBufferLogger(getApplicationContext());
     }
 
     @NonNull

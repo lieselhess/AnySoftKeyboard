@@ -14,7 +14,8 @@ public class LoggerUtil {
 
     // TODO: make method that will generate a dated log filename every Nth hour.
 
-    private static final String LOG_FILENAME = "Logger.log";
+    private static final String RAW_LOG_FILENAME = "raw.log";
+    private static final String BUFFER_LOG_FILENAME = "buffered.log";
 
     public static final String TAG = "LoggerUtil";
 
@@ -31,7 +32,7 @@ public class LoggerUtil {
     }
 
     private void openLogfile() throws FileNotFoundException {
-        mOutputStream = mContext.openFileOutput(LOG_FILENAME, Context.MODE_APPEND);
+        mOutputStream = mContext.openFileOutput(RAW_LOG_FILENAME, Context.MODE_APPEND);
     }
 
     public void close() throws IOException {
@@ -84,6 +85,21 @@ public class LoggerUtil {
         } catch (IOException e) {
             Log.e(TAG, "Unable to write new-line [\\n]");
         }
+    }
+
+    public void writeLineBuffer(final String bufferContents, final Date startTime) {
+        final SimpleDateFormat format = new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss]", Locale.US);
+        final String startTimeString = format.format(startTime);
+        final String endTimeString = format.format(new Date());
+        final String logLine = String.format("[%s - %s] %s\n", startTimeString, endTimeString, bufferContents);
+        Log.d(TAG, String.format("LINE LOGGED: %s", logLine));
+        // TODO: Move this method into a smaller class specific to buffer logging.
+//        try {
+//            write(logLine);
+//        } catch (IOException e) {
+//            Log.e(TAG, "Unable to write timestamp!");
+//            e.printStackTrace();
+//        }
     }
 
 }
