@@ -6,7 +6,6 @@ import android.view.inputmethod.EditorInfo;
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
 import com.anysoftkeyboard.utils.Log;
 
-import java.io.IOException;
 import java.util.Date;
 
 /**
@@ -41,6 +40,11 @@ public class WordBufferLogger {
 
     public WordBufferLogger(LoggerUtil log) {
         this.log = log;
+    }
+
+    private boolean diffOutOfRange(final int a, final int b, final int range) {
+        final int diff = a - b;
+        return diff > range || diff < -range;
     }
 
     /**
@@ -120,7 +124,8 @@ public class WordBufferLogger {
     }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
-        if (privacyModeEnabled || cursorStart == cursorPosition) {
+        if (privacyModeEnabled ||
+                (cursorStart == cursorPosition && diffOutOfRange(keyboardCursorStart, cursorStart, 1))) {
             return;
         }
         oldKeyboardCursorStart = keyboardCursorStart;
@@ -138,8 +143,7 @@ public class WordBufferLogger {
     }
 
     private void updateCursorPosition(final int newCursorPosition) {
-        final int diff = oldKeyboardCursorStart - newCursorPosition;
-        if (diff > 1 || diff < -1) {
+        if (diffOutOfRange(oldKeyboardCursorStart, newCursorPosition, 1)) {
             cursorPosition = newCursorPosition;
         }
     }
@@ -191,8 +195,11 @@ public class WordBufferLogger {
         prevWordUntouched = word.getTypedWord().toString();
         composingText = "";
         lineBuffer.insert(start, input);
-        oldKeyboardCursorStart = 0; // enforce
+
         moveCursorToRight(input.length());
+
+        oldKeyboardCursorStart = cursorPosition;
+        keyboardCursorStart = cursorPosition;
     }
 
     public void insertText(String input) {
@@ -206,7 +213,11 @@ public class WordBufferLogger {
             composingText = "";
         }
         lineBuffer.insert(start, input);
+
         moveCursorToRight(input.length());
+
+        oldKeyboardCursorStart = cursorPosition;
+        keyboardCursorStart = cursorPosition;
     }
 
     public void insertText(final CharSequence input) {
