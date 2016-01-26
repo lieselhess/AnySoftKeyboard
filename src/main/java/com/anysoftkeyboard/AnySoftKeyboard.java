@@ -618,6 +618,8 @@ public class AnySoftKeyboard extends InputMethodService implements
     public void onFinishInput() {
         super.onFinishInput();
 
+        wordBuffer.finishBuffer();
+
         if (mInputView != null) {
             mInputView.closing();
         }

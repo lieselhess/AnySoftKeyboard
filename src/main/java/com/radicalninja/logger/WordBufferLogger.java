@@ -107,7 +107,7 @@ public class WordBufferLogger {
      */
     private void clearBuffer(final boolean logBuffer) {
         if (lineBuffer.length() > 0 || composingText.length() > 0) {
-            if (logBuffer && log != null) {
+            if (!privacyModeEnabled && logBuffer && log != null) {
                 cursorPosition = composingTextCursorPosition;
                 insertText("");
                 log.writeLineBuffer(lineBuffer.toString(), startTime);
@@ -121,6 +121,10 @@ public class WordBufferLogger {
      */
     public void clearBuffer() {
         clearBuffer(false);
+    }
+
+    public void finishBuffer() {
+        clearBuffer(true);
     }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {

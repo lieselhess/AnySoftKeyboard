@@ -1,6 +1,7 @@
 package com.radicalninja.logger;
 
 import android.content.Context;
+import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.File;
@@ -104,12 +105,14 @@ public class LoggerUtil {
     }
 
     public void writeLineBuffer(final String bufferContents, final Date startTime) {
+        if (TextUtils.isEmpty(bufferContents)) {
+            return;
+        }
         final SimpleDateFormat format = new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss]", Locale.US);
         final String startTimeString = format.format(startTime);
         final String endTimeString = format.format(new Date());
         final String logLine = String.format("[%s - %s] %s\n", startTimeString, endTimeString, bufferContents);
         Log.i(TAG, String.format("LINE LOGGED: %s", logLine));
-        // TODO: Move this method into a smaller class specific to buffer logging.
         try {
             writeBufferedLine(logLine);
         } catch (IOException e) {
