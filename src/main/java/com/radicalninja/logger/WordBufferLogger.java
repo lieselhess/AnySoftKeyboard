@@ -189,7 +189,7 @@ public class WordBufferLogger {
             return;
         }
         final String input = word.getPreferredWord().toString();
-        final int start = Math.max(cursorPosition, 0);
+        final int start = (cursorPosition > lineBuffer.length()) ? lineBuffer.length() : Math.max(cursorPosition, 0);
         prevInput = input;
         prevWordCorrected = input;
         prevWordUntouched = word.getTypedWord().toString();
@@ -207,9 +207,11 @@ public class WordBufferLogger {
             return;
         }
         prevInput = input;
-        final int start = Math.max(cursorPosition, 0);
+        final int start = (cursorPosition > lineBuffer.length()) ? lineBuffer.length() : Math.max(cursorPosition, 0);
         if (composingText.length() > 0) {
-            input = String.format("%s%s", composingText, input);
+            if (!composingText.equals(input)) {
+                input = String.format("%s%s", composingText, input);
+            }
             composingText = "";
         }
         lineBuffer.insert(start, input);
@@ -239,6 +241,9 @@ public class WordBufferLogger {
             return;
         }
         deleteSurroundingText(prevWordCorrected.length() + prevInput.length(), 0);
-        setCursorPosition(cursorPosition - prevWordCorrected.length() + prevWordUntouched.length());
+//        setCursorPosition(cursorPosition - prevWordCorrected.length() + prevWordUntouched.length());
+
+        oldKeyboardCursorStart = cursorPosition;
+        keyboardCursorStart = cursorPosition;
     }
 }
