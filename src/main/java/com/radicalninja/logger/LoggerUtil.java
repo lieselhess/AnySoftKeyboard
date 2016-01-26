@@ -3,6 +3,7 @@ package com.radicalninja.logger;
 import android.content.Context;
 import android.util.Log;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -22,33 +23,48 @@ public class LoggerUtil {
     private boolean mNewLine = false;
     private boolean mLineFinished = true;
     private Context mContext;
-    private FileOutputStream mOutputStream;
+    private FileOutputStream mRawOutputStream, mBufferedOutputStream;
     //private PreferencesManager mPrefs;
 
     public LoggerUtil(Context context) throws FileNotFoundException {
         mContext = context;
         //mPrefs = PreferencesManager.getInstance(context);
+
         openLogfile();
+        //openLogFileExternalStorage();
     }
 
     private void openLogfile() throws FileNotFoundException {
-        mOutputStream = mContext.openFileOutput(RAW_LOG_FILENAME, Context.MODE_APPEND);
+        mRawOutputStream = mContext.openFileOutput(RAW_LOG_FILENAME, Context.MODE_APPEND);
+        mBufferedOutputStream = mContext.openFileOutput(BUFFER_LOG_FILENAME, Context.MODE_APPEND);
+    }
+
+    @SuppressWarnings("NewApi")
+    private void openLogFileExternalStorage() throws FileNotFoundException {
+        final File fileRaw = new File(mContext.getExternalFilesDir(null), RAW_LOG_FILENAME);
+        mRawOutputStream = new FileOutputStream(fileRaw, true);
+        final File fileBuffered = new File(mContext.getExternalFilesDir(null), BUFFER_LOG_FILENAME);
+        mBufferedOutputStream = new FileOutputStream(fileBuffered, true);
     }
 
     public void close() throws IOException {
-        mOutputStream.close();
+        mRawOutputStream.close();
     }
 
-    public void write(String strToWrite) throws IOException {
+    public void writeBufferedLine(String strToWrite) throws IOException {
+        mBufferedOutputStream.write(strToWrite.getBytes());
+    }
+
+    public void write(char charToWrite) throws IOException {
+        writeRawString(Character.toString(charToWrite));
+    }
+
+    public void writeRawString(final String strToWrite) throws IOException {
         if (mNewLine) {
             writeNewLine();
         }
 
-        mOutputStream.write(strToWrite.getBytes());
-    }
-
-    public void write(char charToWrite) throws IOException {
-        write(Character.toString(charToWrite));
+        mRawOutputStream.write(strToWrite.getBytes());
     }
 
     public void startLine() {
@@ -64,7 +80,7 @@ public class LoggerUtil {
         String timestamp =
                 new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss] ", Locale.US).format(new Date());
         try {
-            write(timestamp);
+            writeRawString(timestamp);
         } catch (IOException e) {
             Log.e(TAG, "Unable to write timestamp!");
         }
@@ -81,7 +97,7 @@ public class LoggerUtil {
         mLineFinished = true;
         mNewLine = false;
         try {
-            write("\n");
+            writeRawString("\n");
         } catch (IOException e) {
             Log.e(TAG, "Unable to write new-line [\\n]");
         }
@@ -92,14 +108,14 @@ public class LoggerUtil {
         final String startTimeString = format.format(startTime);
         final String endTimeString = format.format(new Date());
         final String logLine = String.format("[%s - %s] %s\n", startTimeString, endTimeString, bufferContents);
-        Log.d(TAG, String.format("LINE LOGGED: %s", logLine));
+        Log.i(TAG, String.format("LINE LOGGED: %s", logLine));
         // TODO: Move this method into a smaller class specific to buffer logging.
-//        try {
-//            write(logLine);
-//        } catch (IOException e) {
-//            Log.e(TAG, "Unable to write timestamp!");
-//            e.printStackTrace();
-//        }
+        try {
+            writeBufferedLine(logLine);
+        } catch (IOException e) {
+            Log.e(TAG, "Unable to write buffered line!!");
+            e.printStackTrace();
+        }
     }
 
 }

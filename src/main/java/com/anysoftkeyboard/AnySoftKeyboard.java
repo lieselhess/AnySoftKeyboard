@@ -2060,7 +2060,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                         // TODO: Move this and other similar calls into LoggerUtil for easy reference.
                         try {
                             Log.d(LoggerUtil.class.getSimpleName(), "Writing backspace [{bs}]");
-                            mLogger.write("{bs}");
+                            mLogger.writeRawString("{bs}");
                         } catch (IOException e) {
                             Log.d(LoggerUtil.class.getSimpleName(), "Error writing backspace to log!", e);
                         }
@@ -2078,7 +2078,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             try {
                 Log.d(LoggerUtil.class.getSimpleName(), "Writing backspace [{bs}]");
                 wordBuffer.deleteSurroundingText(1, 0);
-                mLogger.write("{bs}");
+                mLogger.writeRawString("{bs}");
             } catch (IOException e) {
                 Log.d(LoggerUtil.class.getSimpleName(), "Error writing backspace to log!", e);
             }
@@ -2293,7 +2293,7 @@ public class AnySoftKeyboard extends InputMethodService implements
 
             try {
                 Log.d(LoggerUtil.TAG, "Writing new line [\\n] to log.");
-                mLogger.write("\n");
+                mLogger.writeRawString("\n");
             } catch (IOException e) {
                 Log.d(LoggerUtil.TAG, "Error writing white space to log!", e);
             }
