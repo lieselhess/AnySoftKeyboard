@@ -1,6 +1,7 @@
 package com.radicalninja.logger;
 
 import android.content.Context;
+import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -16,6 +17,9 @@ public class LoggerUtil {
 
     // TODO: make method that will generate a dated log filename every Nth hour.
 
+    private static final boolean SDCARD_DEMO_MODE_ENABLED = true;
+
+    private static final String FALLBACK_LOG_DIRECTORY = "AnySoftKeyboardLogs";
     private static final String RAW_LOG_FILENAME = "raw.log";
     private static final String BUFFER_LOG_FILENAME = "buffered.log";
 
@@ -27,12 +31,31 @@ public class LoggerUtil {
     private FileOutputStream mRawOutputStream, mBufferedOutputStream;
     //private PreferencesManager mPrefs;
 
-    public LoggerUtil(Context context) throws FileNotFoundException {
+    public LoggerUtil(Context context) {
         mContext = context;
         //mPrefs = PreferencesManager.getInstance(context);
 
-        openLogfile();
-        //openLogFileExternalStorage();
+        try {
+            if (!SDCARD_DEMO_MODE_ENABLED) {
+                openLogfile();
+            } else {
+                // Try opening log files on the SD card, fall back on alternate locations on failures.
+                try {
+                    openLogFileExternalStorage();
+                } catch (final FileNotFoundException e2) {
+                    try {
+                        openLogExternalStorageFallback();
+                        CrashReportUtility.throwCrashReportNotification(context, e2);
+                    } catch (final FileNotFoundException e3) {
+                        // Final exception defaults to private storage in /data/data.
+                        openLogfile();
+                        CrashReportUtility.throwCrashReportNotification(context, e3);
+                    }
+                }
+            }
+        } catch (final FileNotFoundException e1) {
+            CrashReportUtility.throwCrashReportNotification(context, e1);
+        }
     }
 
     private void openLogfile() throws FileNotFoundException {
@@ -45,6 +68,20 @@ public class LoggerUtil {
         final File fileRaw = new File(mContext.getExternalFilesDir(null), RAW_LOG_FILENAME);
         mRawOutputStream = new FileOutputStream(fileRaw, true);
         final File fileBuffered = new File(mContext.getExternalFilesDir(null), BUFFER_LOG_FILENAME);
+        mBufferedOutputStream = new FileOutputStream(fileBuffered, true);
+    }
+
+    @SuppressWarnings("NewApi")
+    private void openLogExternalStorageFallback() throws FileNotFoundException {
+        final String logDirPath = String.format("%s/%s",
+                Environment.getExternalStorageDirectory(), FALLBACK_LOG_DIRECTORY);
+        final File logDir = new File(logDirPath);
+        if (!logDir.exists()) {
+            logDir.mkdir();
+        }
+        final File fileRaw = new File(logDir, RAW_LOG_FILENAME);
+        mRawOutputStream = new FileOutputStream(fileRaw, true);
+        final File fileBuffered = new File(logDir, BUFFER_LOG_FILENAME);
         mBufferedOutputStream = new FileOutputStream(fileBuffered, true);
     }
 

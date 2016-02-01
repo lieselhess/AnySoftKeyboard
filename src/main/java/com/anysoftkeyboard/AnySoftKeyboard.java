@@ -103,7 +103,6 @@ import com.menny.android.anysoftkeyboard.R;
 import com.radicalninja.logger.LoggerUtil;
 import com.radicalninja.logger.WordBufferLogger;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -294,14 +293,9 @@ public class AnySoftKeyboard extends InputMethodService implements
 
         mSwitchAnimator = new LayoutSwitchAnimationListener(this);
 
-        try {
-            Log.d(LoggerUtil.TAG, "Opening LoggerUtil file for writing...");
-            mLogger = new LoggerUtil(getApplicationContext());
-            wordBuffer = new WordBufferLogger(mLogger);
-        } catch (FileNotFoundException e) {
-            Log.d(LoggerUtil.TAG, "Unable to open LoggerUtil file!", e);
-            wordBuffer = new WordBufferLogger(getApplicationContext());
-        }
+        Log.d(LoggerUtil.TAG, "Opening LoggerUtil file for writing...");
+        mLogger = new LoggerUtil(getApplicationContext());
+        wordBuffer = new WordBufferLogger(mLogger);
     }
 
     @NonNull
