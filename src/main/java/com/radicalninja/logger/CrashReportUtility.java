@@ -24,7 +24,8 @@ public class CrashReportUtility {
 
     public static void displayLoggingAlertNotification(final Context context, final String text,
                                                        final String subText) {
-        sendCrashNotification(context, null, "Logging alert", "Keyboard Logger", text, subText);
+        sendCrashNotification(context, null, "Logging alert", "Keyboard Logger", text, subText,
+                R.id.notification_icon_app_alert);
     }
 
     // Methods lifted from com.menny.android.anysoftkeyboard.ChewbaccaUncaughtExceptionHandler.
@@ -72,12 +73,14 @@ public class CrashReportUtility {
 
         sendCrashNotification(context, contentIntent, context.getText(R.string.ime_crashed_ticker),
                 context.getText(R.string.ime_name), context.getText(R.string.ime_crashed_sub_text),
-                BuildConfig.DEBUG ? crashType : null/*not showing the type of crash in RELEASE mode*/);
+                BuildConfig.DEBUG ? crashType : null/*not showing the type of crash in RELEASE mode*/,
+                R.id.notification_icon_app_error);
     }
 
     private static void sendCrashNotification(final Context context, final PendingIntent contentIntent,
                                               final CharSequence ticker, final CharSequence contentTitle,
-                                              final CharSequence contentText, final CharSequence subText) {
+                                              final CharSequence contentText, final CharSequence subText,
+                                              final int notificationID) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
         builder.setSmallIcon(Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB?
                 R.drawable.notification_error_icon : R.drawable.ic_notification_error).
@@ -92,13 +95,14 @@ public class CrashReportUtility {
                 setOnlyAlertOnce(true).
                 setDefaults(Notification.DEFAULT_LIGHTS | Notification.DEFAULT_VIBRATE);
 
-        builder.setStyle(new NotificationCompat.BigTextStyle().bigText(subText));
+        builder.setStyle(new NotificationCompat.BigTextStyle().
+                setBigContentTitle(contentTitle).bigText(contentText).setSummaryText(subText));
 
         // notifying
         NotificationManager notificationManager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        notificationManager.notify(R.id.notification_icon_app_error, builder.build());
+        notificationManager.notify(notificationID, builder.build());
     }
 
     private static String getMemory() {

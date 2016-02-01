@@ -48,13 +48,13 @@ public class LoggerUtil {
                 } catch (final FileNotFoundException e2) {
                     try {
                         openLogExternalStorageFallback();
-//                        CrashReportUtility.throwCrashReportNotification(context, e2);
+                        CrashReportUtility.throwCrashReportNotification(context, e2);
                         CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
                                 "/sdcard/" + FALLBACK_LOG_DIRECTORY);
                     } catch (final FileNotFoundException e3) {
                         // Final exception defaults to private storage in /data/data.
                         openLogfile();
-//                        CrashReportUtility.throwCrashReportNotification(context, e3);
+                        CrashReportUtility.throwCrashReportNotification(context, e3);
                         CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
                                 "PRIVATE APP STORAGE");
                     }
