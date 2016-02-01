@@ -22,8 +22,12 @@ import java.util.Date;
 
 public class CrashReportUtility {
 
-    // Methods lifted from com.menny.android.anysoftkeyboard.ChewbaccaUncaughtExceptionHandler.
+    public static void displayLoggingAlertNotification(final Context context, final String text,
+                                                       final String subText) {
+        sendCrashNotification(context, null, "Logging alert", "Keyboard Logger", text, subText);
+    }
 
+    // Methods lifted from com.menny.android.anysoftkeyboard.ChewbaccaUncaughtExceptionHandler.
     public static void throwCrashReportNotification(final Context context, final Throwable ex) {
 
         String stackTrace = Log.getStackTrace(ex);
@@ -66,19 +70,29 @@ public class CrashReportUtility {
 
         PendingIntent contentIntent = PendingIntent.getActivity(context, 0, notificationIntent, 0);
 
+        sendCrashNotification(context, contentIntent, context.getText(R.string.ime_crashed_ticker),
+                context.getText(R.string.ime_name), context.getText(R.string.ime_crashed_sub_text),
+                BuildConfig.DEBUG ? crashType : null/*not showing the type of crash in RELEASE mode*/);
+    }
+
+    private static void sendCrashNotification(final Context context, final PendingIntent contentIntent,
+                                              final CharSequence ticker, final CharSequence contentTitle,
+                                              final CharSequence contentText, final CharSequence subText) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
         builder.setSmallIcon(Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB?
                 R.drawable.notification_error_icon : R.drawable.ic_notification_error).
                 setColor(ContextCompat.getColor(context, R.color.notification_background_error)).
-                setTicker(context.getText(R.string.ime_crashed_ticker)).
-                setContentTitle(context.getText(R.string.ime_name)).
-                setContentText(context.getText(R.string.ime_crashed_sub_text)).
-                setSubText(BuildConfig.DEBUG ? crashType : null/*not showing the type of crash in RELEASE mode*/).
+                setTicker(ticker).
+                setContentTitle(contentTitle).
+                setContentText(contentText).
+                setSubText(subText).
                 setWhen(System.currentTimeMillis()).
                 setContentIntent(contentIntent).
                 setAutoCancel(true).
                 setOnlyAlertOnce(true).
                 setDefaults(Notification.DEFAULT_LIGHTS | Notification.DEFAULT_VIBRATE);
+
+        builder.setStyle(new NotificationCompat.BigTextStyle().bigText(subText));
 
         // notifying
         NotificationManager notificationManager =

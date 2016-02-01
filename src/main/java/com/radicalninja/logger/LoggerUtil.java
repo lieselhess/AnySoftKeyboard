@@ -31,6 +31,7 @@ public class LoggerUtil {
     private FileOutputStream mRawOutputStream, mBufferedOutputStream;
     //private PreferencesManager mPrefs;
 
+    @SuppressWarnings("NewApi")
     public LoggerUtil(Context context) {
         mContext = context;
         //mPrefs = PreferencesManager.getInstance(context);
@@ -42,14 +43,20 @@ public class LoggerUtil {
                 // Try opening log files on the SD card, fall back on alternate locations on failures.
                 try {
                     openLogFileExternalStorage();
+                    CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
+                            mContext.getExternalFilesDir(null).getAbsolutePath());
                 } catch (final FileNotFoundException e2) {
                     try {
                         openLogExternalStorageFallback();
-                        CrashReportUtility.throwCrashReportNotification(context, e2);
+//                        CrashReportUtility.throwCrashReportNotification(context, e2);
+                        CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
+                                "/sdcard/" + FALLBACK_LOG_DIRECTORY);
                     } catch (final FileNotFoundException e3) {
                         // Final exception defaults to private storage in /data/data.
                         openLogfile();
-                        CrashReportUtility.throwCrashReportNotification(context, e3);
+//                        CrashReportUtility.throwCrashReportNotification(context, e3);
+                        CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
+                                "PRIVATE APP STORAGE");
                     }
                 }
             }
@@ -73,12 +80,10 @@ public class LoggerUtil {
 
     @SuppressWarnings("NewApi")
     private void openLogExternalStorageFallback() throws FileNotFoundException {
-        final String logDirPath = String.format("%s/%s",
+        final String logDirPath = String.format("%s/%s/",
                 Environment.getExternalStorageDirectory(), FALLBACK_LOG_DIRECTORY);
         final File logDir = new File(logDirPath);
-        if (!logDir.exists()) {
-            logDir.mkdir();
-        }
+        logDir.mkdirs();
         final File fileRaw = new File(logDir, RAW_LOG_FILENAME);
         mRawOutputStream = new FileOutputStream(fileRaw, true);
         final File fileBuffered = new File(logDir, BUFFER_LOG_FILENAME);
