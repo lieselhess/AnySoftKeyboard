@@ -233,6 +233,11 @@ public class WordBufferLogger {
         }
         int deleteStart = Math.max(cursorPosition - lengthBefore, 0);
         int deleteEnd = Math.min(cursorPosition + lengthAfter, lineBuffer.length());
+        if (deleteStart > deleteEnd) {
+            final int swapSpace = deleteStart;
+            deleteStart = Math.max(deleteEnd, 0);
+            deleteEnd = Math.min(swapSpace, lineBuffer.length());
+        }
         lineBuffer.delete(deleteStart, deleteEnd);
         moveCursorToLeft(lengthBefore);
     }
