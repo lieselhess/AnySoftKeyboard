@@ -39,6 +39,8 @@ import net.evendanan.frankenrobot.Lab;
 
 public class AnyApplication extends Application implements OnSharedPreferenceChangeListener {
 
+    private static AnyApplication instance;
+
     private static final String TAG = "ASK_APP";
     private static AskPrefs msConfig;
     private static FrankenRobot msFrank;
@@ -48,6 +50,9 @@ public class AnyApplication extends Application implements OnSharedPreferenceCha
     @Override
     public void onCreate() {
         super.onCreate();
+
+        instance = this;
+
         Thread.setDefaultUncaughtExceptionHandler(new ChewbaccaUncaughtExceptionHandler(getBaseContext(), null));
         Log.d(TAG, "** Starting application in DEBUG mode.");
         msFrank = Lab.build(getApplicationContext(), R.array.frankenrobot_interfaces_mapping);
@@ -101,4 +106,7 @@ public class AnyApplication extends Application implements OnSharedPreferenceCha
         return msFrank;
     }
 
+    public static AnyApplication getInstance() {
+        return instance;
+    }
 }
