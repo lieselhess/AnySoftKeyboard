@@ -15,7 +15,6 @@ public abstract class WizardPageBaseFragment extends Fragment {
 
     /**
      * calculate whether the step's pre-configurations are done.
-     * @return
      */
     protected abstract boolean isStepPreConditionDone();
 
@@ -26,18 +25,30 @@ public abstract class WizardPageBaseFragment extends Fragment {
         refreshFragmentUi();
     }
 
+    protected void refreshWizardPager() {
+        //re-triggering UI update
+        Fragment owningFragment = getActivity().getSupportFragmentManager().findFragmentById(R.id.main_ui_content);
+        if (owningFragment == null) return;
+        SetUpKeyboardWizardFragment wizardFragment = (SetUpKeyboardWizardFragment) owningFragment;
+        wizardFragment.refreshFragmentsUi();
+    }
+
     public void refreshFragmentUi() {
-        final View preStepNotCompeleted = getView().findViewById(R.id.previous_step_not_complete);
-        final View thisStepCompeleted = getView().findViewById(R.id.this_step_complete);
+        if ((!isResumed()) || getActivity() == null) {
+            //if the fragment is not shown, we will call refresh in onStart
+            return;
+        }
+        final View pareStepNotCompleted = getView().findViewById(R.id.previous_step_not_complete);
+        final View thisStepCompleted = getView().findViewById(R.id.this_step_complete);
         final View thisStepSetup = getView().findViewById(R.id.this_step_needs_setup);
 
-        preStepNotCompeleted.setVisibility(View.GONE);
-        thisStepCompeleted.setVisibility(View.GONE);
+        pareStepNotCompleted.setVisibility(View.GONE);
+        thisStepCompleted.setVisibility(View.GONE);
         thisStepSetup.setVisibility(View.GONE);
         if (!isStepPreConditionDone()) {
-            preStepNotCompeleted.setVisibility(View.VISIBLE);
+            pareStepNotCompleted.setVisibility(View.VISIBLE);
         } else if (isStepCompleted()) {
-            thisStepCompeleted.setVisibility(View.VISIBLE);
+            thisStepCompleted.setVisibility(View.VISIBLE);
         } else {
             thisStepSetup.setVisibility(View.VISIBLE);
         }

@@ -56,8 +56,8 @@ final class BackupUserWordsAsyncTask extends UserWordsEditorAsyncTask {
         if (a == null)
             return;
         // I can access the UI object in the UI thread.
-        for (int i = 0; i < a.mLanguagesSpinner.getCount(); i++) {
-            final String locale = ((DictionaryLocale) a.mLanguagesSpinner.getItemAtPosition(i)).getLocale();
+        for (int i = 0; i < a.getLanguagesSpinner().getCount(); i++) {
+            final String locale = ((DictionaryLocale) a.getLanguagesSpinner().getItemAtPosition(i)).getLocale();
             if (!TextUtils.isEmpty(locale)) {
                 mLocalesToSave.add(locale);
                 Log.d(TAG, "Found a locale to backup: " + locale);
@@ -69,8 +69,7 @@ final class BackupUserWordsAsyncTask extends UserWordsEditorAsyncTask {
     protected Void doAsyncTask(Void[] params) throws Exception {
         // http://developer.android.com/guide/topics/data/data-storage.html#filesExternal
         final File externalFolder = Environment.getExternalStorageDirectory();
-        final File targetFolder = new File(externalFolder, "/Android/data/"
-                + mAppContext.getPackageName() + "/files/");
+        final File targetFolder = new File(externalFolder, "/Android/data/" + mAppContext.getPackageName() + "/files/");
         targetFolder.mkdirs();
         // https://github.com/menny/Java-very-tiny-XmlWriter/blob/master/XmlWriter.java
         XmlWriter output = new XmlWriter(new File(targetFolder, mFilename));

@@ -74,7 +74,7 @@ import com.anysoftkeyboard.keyboards.views.preview.PreviewPopupTheme;
 import com.anysoftkeyboard.quicktextkeys.ui.QuickTextViewFactory;
 import com.anysoftkeyboard.theme.KeyboardTheme;
 import com.anysoftkeyboard.theme.KeyboardThemeFactory;
-import com.anysoftkeyboard.utils.CompatUtils;
+import com.anysoftkeyboard.base.utils.CompatUtils;
 import com.anysoftkeyboard.utils.Log;
 import com.menny.android.anysoftkeyboard.AnyApplication;
 import com.menny.android.anysoftkeyboard.BuildConfig;
@@ -83,7 +83,6 @@ import com.menny.android.anysoftkeyboard.R;
 import java.lang.ref.WeakReference;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.ListIterator;
 import java.util.Map;
 
 public class AnyKeyboardBaseView extends View implements
@@ -332,14 +331,14 @@ public class AnyKeyboardBaseView extends View implements
         }
 
         public void releaseAllPointersOlderThan(final PointerTracker tracker, final long eventTime) {
-            final ListIterator<PointerTracker> iterator = mQueue.listIterator();
-            while(iterator.hasNext()) {
-                final PointerTracker t = iterator.next();
-                if (t == tracker) return;
+            //doing a copy to prevent ConcurrentModificationException
+            PointerTracker[] trackers = mQueue.toArray(new PointerTracker[mQueue.size()]);
+            for (PointerTracker t : trackers) {
+                if (t == tracker) break;
                 if (!t.isModifier()) {
                     t.onUpEvent(t.getLastX(), t.getLastY(), eventTime);
                     t.setAlreadyProcessed();
-                    iterator.remove();
+                    mQueue.remove(t);
                 }
             }
         }
@@ -352,8 +351,7 @@ public class AnyKeyboardBaseView extends View implements
                 t.setAlreadyProcessed();
             }
             mQueue.clear();
-            if (tracker != null)
-                mQueue.add(tracker);
+            if (tracker != null) mQueue.add(tracker);
         }
 
         public void remove(PointerTracker tracker) {
@@ -380,8 +378,6 @@ public class AnyKeyboardBaseView extends View implements
 
         KeyboardTheme theme = KeyboardThemeFactory.getCurrentKeyboardTheme(context.getApplicationContext());
         final int keyboardThemeStyleResId = getKeyboardStyleResId(theme);
-        Log.d(TAG, "Will use keyboard theme " + theme.getName() + " id "
-                + theme.getId() + " res " + keyboardThemeStyleResId);
 
         final int[] remoteKeyboardThemeStyleable = theme.getResourceMapping().getRemoteStyleableArrayFromLocal(R.styleable.AnyKeyboardViewTheme);
         final int[] remoteKeyboardIconsThemeStyleable = theme.getResourceMapping().getRemoteStyleableArrayFromLocal(R.styleable.AnyKeyboardViewIconsTheme);
@@ -405,8 +401,6 @@ public class AnyKeyboardBaseView extends View implements
         a.recycle();
         // taking icons
         int iconSetStyleRes = theme.getIconsThemeResId();
-        Log.d(TAG, "Will use keyboard icons theme " + theme.getName() + " id "
-                + theme.getId() + " res " + iconSetStyleRes);
         if (iconSetStyleRes != 0) {
             a = theme.getPackageContext().obtainStyledAttributes(iconSetStyleRes, remoteKeyboardIconsThemeStyleable);
             final int iconsCount = a.getIndexCount();
@@ -429,10 +423,6 @@ public class AnyKeyboardBaseView extends View implements
         // filling what's missing
         KeyboardTheme fallbackTheme = KeyboardThemeFactory.getFallbackTheme(context.getApplicationContext());
         final int keyboardFallbackThemeStyleResId = getKeyboardStyleResId(fallbackTheme);
-        Log.d(TAG,
-                "Will use keyboard fallback theme " + fallbackTheme.getName()
-                        + " id " + fallbackTheme.getId() + " res "
-                        + keyboardFallbackThemeStyleResId);
         a = fallbackTheme.getPackageContext().obtainStyledAttributes(
                 keyboardFallbackThemeStyleResId,
                 R.styleable.AnyKeyboardViewTheme);
@@ -443,17 +433,11 @@ public class AnyKeyboardBaseView extends View implements
             final int attrId = R.styleable.AnyKeyboardViewTheme[index];
             if (doneLocalAttributeIds.contains(attrId))
                 continue;
-            Log.d(TAG, "Falling back theme res ID " + index);
             setValueFromTheme(a, padding, attrId, index);
         }
         a.recycle();
         // taking missing icons
         int fallbackIconSetStyleId = fallbackTheme.getIconsThemeResId();
-        Log.d(TAG,
-                "Will use keyboard fallback icons theme "
-                        + fallbackTheme.getName() + " id "
-                        + fallbackTheme.getId() + " res "
-                        + fallbackIconSetStyleId);
         a = fallbackTheme.getPackageContext().obtainStyledAttributes(
                 fallbackIconSetStyleId,
                 R.styleable.AnyKeyboardViewIconsTheme);
@@ -464,7 +448,6 @@ public class AnyKeyboardBaseView extends View implements
             final int attrId = R.styleable.AnyKeyboardViewIconsTheme[index];
             if (doneLocalAttributeIds.contains(attrId))
                 continue;
-            Log.d(TAG, "Falling back icon res ID " + index);
             setKeyIconValueFromTheme(fallbackTheme, a, attrId, index);
         }
         a.recycle();
@@ -839,6 +822,9 @@ public class AnyKeyboardBaseView extends View implements
                     break;
                 case R.attr.iconKeyClipboardPaste:
                     keyCode = KeyCodes.CLIPBOARD_PASTE;
+                    break;
+                case R.attr.iconKeyClipboardSelect:
+                    keyCode = KeyCodes.CLIPBOARD_SELECT_ALL;
                     break;
                 default:
                     keyCode = 0;
@@ -1555,8 +1541,6 @@ public class AnyKeyboardBaseView extends View implements
     int mKeyboardActionType = EditorInfo.IME_ACTION_UNSPECIFIED;
 
     public void setKeyboardActionType(final int imeOptions) {
-        Log.d(TAG, "setKeyboardActionType imeOptions:" + imeOptions
-                + " action:" + (imeOptions & EditorInfo.IME_MASK_ACTION));
         if ((imeOptions & EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0)
             mKeyboardActionType = EditorInfo.IME_ACTION_UNSPECIFIED;
         else
@@ -1702,7 +1686,7 @@ public class AnyKeyboardBaseView extends View implements
             icon = builder.buildDrawable();
             if (icon != null) {
                 mKeysIcons.put(keyCode, icon);
-                Log.d(TAG, "Current drawable cache size is %d", mKeysIcons.size());
+                Log.v(TAG, "Current drawable cache size is %d", mKeysIcons.size());
             } else {
                 Log.w(TAG, "Can not find drawable for keyCode %d. Context lost?", keyCode);
             }
@@ -2195,7 +2179,7 @@ public class AnyKeyboardBaseView extends View implements
             if (index >= 0) {
                 mPointerQueue.releaseAllPointersOlderThan(tracker, eventTime);
             } else {
-                Log.w(TAG, "onUpEvent: corresponding down event not found for pointer " + tracker.mPointerId);
+                Log.w(TAG, "onUpEvent: corresponding down event not found for pointer %d", tracker.mPointerId);
                 return;
             }
         }
@@ -2263,8 +2247,7 @@ public class AnyKeyboardBaseView extends View implements
         mSwitcher = null;
     }
 
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
-                                          String key) {
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         Resources res = getResources();
 
         if (key.equals(res.getString(R.string.settings_key_swipe_distance_threshold))
@@ -2293,8 +2276,9 @@ public class AnyKeyboardBaseView extends View implements
             mMiniKeyboardOriginY = 0;
             invalidateAllKeys();
             return true;
-        } else
+        } else {
             return false;
+        }
     }
 
     public boolean handleBack() {

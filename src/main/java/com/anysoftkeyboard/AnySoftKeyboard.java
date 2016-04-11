@@ -16,6 +16,7 @@
 
 package com.anysoftkeyboard;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -35,14 +36,15 @@ import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.support.annotation.DrawableRes;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
 import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
+import android.util.SparseBooleanArray;
 import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.Window;
 import android.view.WindowManager;
@@ -58,7 +60,7 @@ import android.widget.Toast;
 
 import com.anysoftkeyboard.LayoutSwitchAnimationListener.AnimationType;
 import com.anysoftkeyboard.api.KeyCodes;
-import com.anysoftkeyboard.base.dictionaries.EditableDictionary;
+import com.anysoftkeyboard.base.dictionaries.Dictionary;
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
 import com.anysoftkeyboard.base.utils.GCUtils;
 import com.anysoftkeyboard.base.utils.GCUtils.MemRelatedOperation;
@@ -67,7 +69,6 @@ import com.anysoftkeyboard.dictionaries.DictionaryAddOnAndBuilder;
 import com.anysoftkeyboard.dictionaries.ExternalDictionaryFactory;
 import com.anysoftkeyboard.dictionaries.Suggest;
 import com.anysoftkeyboard.dictionaries.TextEntryState;
-import com.anysoftkeyboard.dictionaries.TextEntryState.State;
 import com.anysoftkeyboard.dictionaries.sqlite.AutoDictionary;
 import com.anysoftkeyboard.keyboards.AnyKeyboard;
 import com.anysoftkeyboard.keyboards.AnyKeyboard.HardKeyboardTranslator;
@@ -98,21 +99,18 @@ import com.anysoftkeyboard.utils.Workarounds;
 import com.google.android.voiceime.VoiceRecognitionTrigger;
 import com.menny.android.anysoftkeyboard.AnyApplication;
 import com.menny.android.anysoftkeyboard.BuildConfig;
-import com.menny.android.anysoftkeyboard.FeaturesSet;
 import com.menny.android.anysoftkeyboard.R;
 import com.radicalninja.logger.LoggerUtil;
 import com.radicalninja.logger.WordBufferLogger;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Input method implementation for QWERTY-ish keyboard.
  */
-public class AnySoftKeyboard extends InputMethodService implements
+public abstract class AnySoftKeyboard extends InputMethodService implements
         OnKeyboardActionListener, OnSharedPreferenceChangeListener,
         AnyKeyboardContextProvider, SoundPreferencesChangedListener {
 
@@ -123,6 +121,7 @@ public class AnySoftKeyboard extends InputMethodService implements
     private static final String KEYBOARD_NOTIFICATION_NEVER = "3";
     private static final long ONE_FRAME_DELAY = 1000L / 60L;
     private static final long CLOSE_DICTIONARIES_DELAY = 5 * ONE_FRAME_DELAY;
+    private static final ExtractedTextRequest EXTRACTED_TEXT_REQUEST = new ExtractedTextRequest();
 
     private final AskPrefs mAskPrefs;
     private final ModifierKeyState mShiftKeyState = new ModifierKeyState(true/*supports locked state*/);
@@ -147,14 +146,23 @@ public class AnySoftKeyboard extends InputMethodService implements
     private CompletionInfo[] mCompletions;
     private AlertDialog mOptionsDialog;
     private long mMetaState;
-    private Set<Character> mSentenceSeparators = Collections.emptySet();
-    // private BTreeDictionary mContactsDictionary;
-    private EditableDictionary mUserDictionary;
+    @NonNull
+    private final SparseBooleanArray mSentenceSeparators = new SparseBooleanArray();
+
     private AutoDictionary mAutoDictionary;
     private WordComposer mWord = new WordComposer();
+
+    private static final long MAX_TIME_TO_EXPECT_SELECTION_UPDATE = 1500;
+    private long mExpectingSelectionUpdateBy = Long.MIN_VALUE;
     private int mOrientation = Configuration.ORIENTATION_PORTRAIT;
     private int mCommittedLength;
     private CharSequence mCommittedWord = "";
+    private int mGlobalCursorPosition = 0;
+    private int mGlobalSelectionStartPosition = 0;
+
+    private boolean mArrowSelectionState;
+
+    private int mLastEditorIdPhysicalKeyboardWasUsed = 0;
     /*
      * Do we do prediction now
      */
@@ -183,10 +191,13 @@ public class AnySoftKeyboard extends InputMethodService implements
     private boolean mAutoComplete;
     // private int mCorrectionMode;
     private String mKeyboardChangeNotificationType;
+
+    private static final int UNDO_COMMIT_NONE = -1;
+    private static final int UNDO_COMMIT_WAITING_TO_RECORD_POSITION = -2;
     /*
      * This will help us find out if UNDO_COMMIT is still possible to be done
      */
-    private int mUndoCommitCursorPosition = -2;
+    private int mUndoCommitCursorPosition = UNDO_COMMIT_NONE;
     private AudioManager mAudioManager;
     private boolean mSilentMode;
     private boolean mSoundOn;
@@ -203,15 +214,19 @@ public class AnySoftKeyboard extends InputMethodService implements
 
     private LoggerUtil mLogger;
     private WordBufferLogger wordBuffer;
+    //a year ago.
+    private static final long NEVER_TIME_STAMP = (-1L) * (365L * 24L * 60L * 60L * 1000L);
+    private long mLastSpaceTimeStamp = NEVER_TIME_STAMP;
 
     public AnySoftKeyboard() {
         mAskPrefs = AnyApplication.getConfig();
     }
 
-    private static int getCursorPosition(InputConnection connection) {
+    //TODO SHOULD NOT USE THIS METHOD AT ALL!
+    private static int getCursorPosition(@Nullable InputConnection connection) {
         if (connection == null)
             return 0;
-        ExtractedText extracted = connection.getExtractedText(new ExtractedTextRequest(), 0);
+        ExtractedText extracted = connection.getExtractedText(EXTRACTED_TEXT_REQUEST, 0);
         if (extracted == null)
             return 0;
         return extracted.startOffset + extracted.selectionStart;
@@ -320,6 +335,8 @@ public class AnySoftKeyboard extends InputMethodService implements
 
         mInputMethodManager.hideStatusIcon(mImeToken);
 
+        hideWindow();
+
         if (mInputView != null) mInputView.onViewNotRequired();
         mInputView = null;
 
@@ -400,51 +417,7 @@ public class AnySoftKeyboard extends InputMethodService implements
 
     @Override
     public View onCreateCandidatesView() {
-        final ViewGroup candidateViewContainer = (ViewGroup) getLayoutInflater().inflate(R.layout.candidates, null);
-        mCandidatesParent = null;
-        mCandidateView = (CandidateView) candidateViewContainer.findViewById(R.id.candidates);
-        mCandidateView.setService(this);
-        setCandidatesViewShown(false);
-
-        final KeyboardTheme theme = KeyboardThemeFactory
-                .getCurrentKeyboardTheme(getApplicationContext());
-        final TypedArray a = theme.getPackageContext().obtainStyledAttributes(null, R.styleable.AnyKeyboardViewTheme, 0, theme.getThemeResId());
-        int closeTextColor = ContextCompat.getColor(this, R.color.candidate_other);
-        float fontSizePixel = getResources().getDimensionPixelSize(R.dimen.candidate_font_height);
-        try {
-            closeTextColor = a.getColor(R.styleable.AnyKeyboardViewTheme_suggestionOthersTextColor, closeTextColor);
-            fontSizePixel = a.getDimension(R.styleable.AnyKeyboardViewTheme_suggestionTextSize, fontSizePixel);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        a.recycle();
-
-        mCandidateCloseText = (TextView) candidateViewContainer.findViewById(R.id.close_suggestions_strip_text);
-        View closeIcon = candidateViewContainer.findViewById(R.id.close_suggestions_strip_icon);
-
-        closeIcon.setOnClickListener(new OnClickListener() {
-            // two seconds is enough.
-            private final static long DOUBLE_TAP_TIMEOUT = 2 * 1000 - 50;
-
-            public void onClick(View v) {
-                mKeyboardHandler.removeMessages(KeyboardUIStateHandler.MSG_REMOVE_CLOSE_SUGGESTIONS_HINT);
-                mCandidateCloseText.setVisibility(View.VISIBLE);
-                mCandidateCloseText.startAnimation(AnimationUtils.loadAnimation(getApplicationContext(), R.anim.close_candidates_hint_in));
-                mKeyboardHandler.sendMessageDelayed(mKeyboardHandler.obtainMessage(KeyboardUIStateHandler.MSG_REMOVE_CLOSE_SUGGESTIONS_HINT), DOUBLE_TAP_TIMEOUT);
-            }
-        });
-
-        mCandidateCloseText.setTextColor(closeTextColor);
-        mCandidateCloseText.setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSizePixel);
-        mCandidateCloseText.setOnClickListener(new OnClickListener() {
-            public void onClick(View v) {
-                mKeyboardHandler.removeMessages(KeyboardUIStateHandler.MSG_REMOVE_CLOSE_SUGGESTIONS_HINT);
-                mCandidateCloseText.setVisibility(View.GONE);
-                abortCorrection(true, true);
-            }
-        });
-
-        return candidateViewContainer;
+        return getLayoutInflater().inflate(R.layout.candidates, null);
     }
 
     @Override
@@ -472,12 +445,28 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     @Override
-    public void onStartInputView(final EditorInfo attribute,
-                                 final boolean restarting) {
-        Log.d(TAG, "onStartInputView(EditorInfo{imeOptions %d, inputType %d}, restarting %s",
+    public boolean onShowInputRequested(int flags, boolean configChange) {
+        final EditorInfo editorInfo = getCurrentInputEditorInfo();
+        //in case the user has used physical keyboard with this input-field,
+        //we will not show the keyboard view (until completely finishing, or switching input fields)
+        final boolean previouslyPhysicalKeyboardInput;
+        if ((!configChange) && editorInfo != null && editorInfo.fieldId == mLastEditorIdPhysicalKeyboardWasUsed && editorInfo.fieldId != 0) {
+            Log.d(TAG, "Already used physical keyboard on this input-field. Will not show keyboard view.");
+            previouslyPhysicalKeyboardInput = true;
+        } else {
+            previouslyPhysicalKeyboardInput = false;
+            mLastEditorIdPhysicalKeyboardWasUsed = 0;
+        }
+        return (!previouslyPhysicalKeyboardInput) && super.onShowInputRequested(flags, configChange);
+    }
+
+    @Override
+    public void onStartInputView(final EditorInfo attribute, final boolean restarting) {
+        Log.v(TAG, "onStartInputView(EditorInfo{imeOptions %d, inputType %d}, restarting %s",
                 attribute.imeOptions, attribute.inputType, restarting);
 
         super.onStartInputView(attribute, restarting);
+
         if (mVoiceRecognitionTrigger != null) {
             mVoiceRecognitionTrigger.onStartInputView();
         }
@@ -611,12 +600,11 @@ public class AnySoftKeyboard extends InputMethodService implements
     @Override
     public void onFinishInput() {
         super.onFinishInput();
+        //properly finished input. Next time we DO want to show the keyboard view
+        mLastEditorIdPhysicalKeyboardWasUsed = 0;
 
         wordBuffer.finishBuffer();
-
-        if (mInputView != null) {
-            mInputView.closing();
-        }
+        hideWindow();
 
         if (!mKeyboardChangeNotificationType.equals(KEYBOARD_NOTIFICATION_ALWAYS)) {
             mInputMethodManager.hideStatusIcon(mImeToken);
@@ -630,19 +618,29 @@ public class AnySoftKeyboard extends InputMethodService implements
      */
     @Override
     public void onUpdateSelection(int oldSelStart, int oldSelEnd,
-                                  int newSelStart, int newSelEnd, int candidatesStart,
-                                  int candidatesEnd) {
+                                  int newSelStart, int newSelEnd,
+                                  int candidatesStart, int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
         wordBuffer.setCursorPositions(newSelStart, newSelEnd);
 
-        Log.d(TAG, "onUpdateSelection: oss=" + oldSelStart + ", ose="
-                + oldSelEnd + ", nss=" + newSelStart + ", nse=" + newSelEnd
-                + ", cs=" + candidatesStart + ", ce=" + candidatesEnd);
-        //next UI thread loop, please recalculate the shift state
+        if (BuildConfig.DEBUG) Log.d(TAG, "onUpdateSelection: oss=%d, ose=%d, nss=%d, nse=%d, cs=%d, ce=%d",
+                oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
 
+        mGlobalCursorPosition = newSelEnd;
+        mGlobalSelectionStartPosition = newSelStart;
+        if (mUndoCommitCursorPosition == UNDO_COMMIT_WAITING_TO_RECORD_POSITION) {
+            Log.d(TAG, "onUpdateSelection: I am in ACCEPTED_DEFAULT state, time to store the position - I can only undo-commit from here.");
+            mUndoCommitCursorPosition = newSelStart;
+        }
         updateShiftStateNow();
 
-        mWord.setGlobalCursorPosition(newSelEnd);
+        final boolean isExpectedEvent = SystemClock.uptimeMillis() < mExpectingSelectionUpdateBy;
+        mExpectingSelectionUpdateBy = NEVER_TIME_STAMP;
+
+        if (isExpectedEvent) {
+            Log.v(TAG, "onUpdateSelection: Expected event. Discarding.");
+            return;
+        }
 
         if (!isPredictionOn()) {
             return;// not relevant if no prediction is needed.
@@ -687,15 +685,11 @@ public class AnySoftKeyboard extends InputMethodService implements
                     postRestartWordSuggestion();
                 }
             } else {
-                Log.d(TAG,
-                        "onUpdateSelection: not predicting at this moment, maybe the cursor is now at a new word?");
-                if (TextEntryState.getState() == State.ACCEPTED_DEFAULT) {
+                Log.d(TAG, "onUpdateSelection: not predicting at this moment, maybe the cursor is now at a new word?");
+                if (TextEntryState.willUndoCommitOnBackspace()){
                     if (mUndoCommitCursorPosition == oldSelStart && mUndoCommitCursorPosition != newSelStart) {
-                        Log.d(TAG, "onUpdateSelection: I am in ACCEPTED_DEFAULT state, but the user moved the cursor, so it is not possible to undo_commit now.");
+                        Log.d(TAG, "onUpdateSelection: I am in a state that is position sensitive but the user moved the cursor, so it is not possible to undo_commit now.");
                         abortCorrection(true, false);
-                    } else if (mUndoCommitCursorPosition == -2) {
-                        Log.d(TAG, "onUpdateSelection: I am in ACCEPTED_DEFAULT state, time to store the position - I can only undo-commit from here.");
-                        mUndoCommitCursorPosition = newSelStart;
                     }
                 }
                 postRestartWordSuggestion();
@@ -750,18 +744,13 @@ public class AnySoftKeyboard extends InputMethodService implements
         if (canRestartWordSuggestion()) {// 2.1
             ic.beginBatchEdit();// don't want any events till I finish handling
             // this touch
-            Log.d(TAG,
-                    "User moved cursor to a word. Should I restart predition?");
             abortCorrection(true, false);
 
             // locating the word
             CharSequence toLeft = "";
             CharSequence toRight = "";
             while (true) {
-                Log.d(TAG, "Checking left offset " + toLeft.length()
-                        + ". Currently have '" + toLeft + "'");
-                CharSequence newToLeft = ic.getTextBeforeCursor(
-                        toLeft.length() + 1, 0);
+                CharSequence newToLeft = ic.getTextBeforeCursor(toLeft.length() + 1, 0);
                 if (TextUtils.isEmpty(newToLeft)
                         || isWordSeparator(newToLeft.charAt(0))
                         || newToLeft.length() == toLeft.length()) {
@@ -770,30 +759,25 @@ public class AnySoftKeyboard extends InputMethodService implements
                 toLeft = newToLeft;
             }
             while (true) {
-                Log.d(TAG, "Checking right offset " + toRight.length()
-                        + ". Currently have '" + toRight + "'");
-                CharSequence newToRight = ic.getTextAfterCursor(
-                        toRight.length() + 1, 0);
+                CharSequence newToRight = ic.getTextAfterCursor(toRight.length() + 1, 0);
                 if (TextUtils.isEmpty(newToRight)
-                        || isWordSeparator(newToRight.charAt(newToRight
-                        .length() - 1))
+                        || isWordSeparator(newToRight.charAt(newToRight.length() - 1))
                         || newToRight.length() == toRight.length()) {
                     break;
                 }
                 toRight = newToRight;
             }
             CharSequence word = toLeft.toString() + toRight.toString();
-            Log.d(TAG, "Starting new prediction on word '" + word + "'.");
+            Log.d(TAG, "Starting new prediction on word '%s'.", word);
             mPredicting = word.length() > 0;
-            mUndoCommitCursorPosition = -2;// so it will be marked the next time
+            mUndoCommitCursorPosition = UNDO_COMMIT_NONE;
             mWord.reset();
 
             final int[] tempNearByKeys = new int[1];
 
             for (int index = 0; index < word.length(); index++) {
                 final char c = word.charAt(index);
-                if (index == 0)
-                    mWord.setFirstCharCapitalized(Character.isUpperCase(c));
+                if (index == 0) mWord.setFirstCharCapitalized(Character.isUpperCase(c));
 
                 tempNearByKeys[0] = c;
                 mWord.add(c, tempNearByKeys);
@@ -804,11 +788,8 @@ public class AnySoftKeyboard extends InputMethodService implements
             ic.setComposingText(word, 1);
             // repositioning the cursor
             if (toRight.length() > 0) {
-                final int cursorPosition = getCursorPosition(ic)
-                        - toRight.length();
-                Log.d(TAG,
-                        "Repositioning the cursor inside the word to position "
-                                + cursorPosition);
+                final int cursorPosition = getCursorPosition(ic) - toRight.length();
+                Log.d(TAG, "Repositioning the cursor inside the word to position %d", cursorPosition);
                 ic.setSelection(cursorPosition, cursorPosition);
             }
 
@@ -821,8 +802,11 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     private void onPhysicalKeyboardKeyPressed() {
-        if (mAskPrefs.hideSoftKeyboardWhenPhysicalKeyPressed())
+        EditorInfo editorInfo = getCurrentInputEditorInfo();
+        mLastEditorIdPhysicalKeyboardWasUsed = editorInfo == null? 0 : editorInfo.fieldId;
+        if (mAskPrefs.hideSoftKeyboardWhenPhysicalKeyPressed()) {
             hideWindow();
+        }
 
         // For all other keys, if we want to do transformations on
         // text being entered with a hard keyboard, we need to process
@@ -845,7 +829,7 @@ public class AnySoftKeyboard extends InputMethodService implements
 
     @Override
     public void onDisplayCompletions(CompletionInfo[] completions) {
-        if (FeaturesSet.DEBUG_LOG) {
+        if (BuildConfig.DEBUG) {
             Log.d(TAG, "Received completions:");
             for (int i = 0; i < (completions != null ? completions.length : 0); i++) {
                 Log.d(TAG, "  #" + i + ": " + completions[i]);
@@ -855,14 +839,11 @@ public class AnySoftKeyboard extends InputMethodService implements
         // completions should be shown if dictionary requires, or if we are in
         // full-screen and have outside completions
         if (mCompletionOn || (isFullscreenMode() && (completions != null))) {
-            Log.v(TAG, "Received completions: completion should be shown: "
-                    + mCompletionOn + " fullscreen:" + isFullscreenMode());
             mCompletions = completions;
             // we do completions :)
 
             mCompletionOn = true;
             if (completions == null) {
-                Log.v(TAG, "Received completions: completion is NULL. Clearing suggestions.");
                 clearSuggestions();
                 return;
             }
@@ -871,15 +852,11 @@ public class AnySoftKeyboard extends InputMethodService implements
             for (CompletionInfo ci : completions) {
                 if (ci != null) stringList.add(ci.getText());
             }
-            Log.v(TAG, "Received completions: setting to suggestions view "
-                    + stringList.size() + " completions.");
             // CharSequence typedWord = mWord.getTypedWord();
             setSuggestions(stringList, true, true, true);
             mWord.setPreferredWord(null);
             // I mean, if I'm here, it must be shown...
             setCandidatesViewShown(true);
-        } else {
-            Log.v(TAG, "Received completions: completions should not be shown.");
         }
     }
 
@@ -907,6 +884,47 @@ public class AnySoftKeyboard extends InputMethodService implements
     public void setCandidatesView(@NonNull View view) {
         super.setCandidatesView(view);
         mCandidatesParent = view.getParent() instanceof View ? (View) view.getParent() : null;
+
+        mCandidateView = (CandidateView) view.findViewById(R.id.candidates);
+        mCandidateView.setService(this);
+        setCandidatesViewShown(false);
+
+        final KeyboardTheme theme = KeyboardThemeFactory.getCurrentKeyboardTheme(getApplicationContext());
+        final TypedArray a = theme.getPackageContext().obtainStyledAttributes(null, R.styleable.AnyKeyboardViewTheme, 0, theme.getThemeResId());
+        int closeTextColor = ContextCompat.getColor(this, R.color.candidate_other);
+        float fontSizePixel = getResources().getDimensionPixelSize(R.dimen.candidate_font_height);
+        try {
+            closeTextColor = a.getColor(R.styleable.AnyKeyboardViewTheme_suggestionOthersTextColor, closeTextColor);
+            fontSizePixel = a.getDimension(R.styleable.AnyKeyboardViewTheme_suggestionTextSize, fontSizePixel);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        a.recycle();
+
+        mCandidateCloseText = (TextView) view.findViewById(R.id.close_suggestions_strip_text);
+        View closeIcon = view.findViewById(R.id.close_suggestions_strip_icon);
+
+        closeIcon.setOnClickListener(new OnClickListener() {
+            // two seconds is enough.
+            private final static long DOUBLE_TAP_TIMEOUT = 2 * 1000 - 50;
+
+            public void onClick(View v) {
+                mKeyboardHandler.removeMessages(KeyboardUIStateHandler.MSG_REMOVE_CLOSE_SUGGESTIONS_HINT);
+                mCandidateCloseText.setVisibility(View.VISIBLE);
+                mCandidateCloseText.startAnimation(AnimationUtils.loadAnimation(getApplicationContext(), R.anim.close_candidates_hint_in));
+                mKeyboardHandler.sendMessageDelayed(mKeyboardHandler.obtainMessage(KeyboardUIStateHandler.MSG_REMOVE_CLOSE_SUGGESTIONS_HINT), DOUBLE_TAP_TIMEOUT);
+            }
+        });
+
+        mCandidateCloseText.setTextColor(closeTextColor);
+        mCandidateCloseText.setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSizePixel);
+        mCandidateCloseText.setOnClickListener(new OnClickListener() {
+            public void onClick(View v) {
+                mKeyboardHandler.removeMessages(KeyboardUIStateHandler.MSG_REMOVE_CLOSE_SUGGESTIONS_HINT);
+                mCandidateCloseText.setVisibility(View.GONE);
+                abortCorrection(true, true);
+            }
+        });
     }
 
     private void clearSuggestions() {
@@ -946,16 +964,18 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     @Override
-    public boolean onKeyDown(final int keyCode, @NonNull KeyEvent event) {
+    public boolean onKeyDown(final int keyEventKeyCode, @NonNull KeyEvent event) {
+        InputConnection ic = getCurrentInputConnection();
+        if (handleSelectionExpending(keyEventKeyCode, ic)) return true;
         final boolean shouldTranslateSpecialKeys = isInputViewShown();
 
-        if (event.isPrintingKey()) onPhysicalKeyboardKeyPressed();
+        //greater than zero means it is a physical keyboard.
+        //we also want to hide the view if it's a glyph (for example, not physical volume-up key)
+        if (event.getDeviceId() > 0 && event.isPrintingKey()) onPhysicalKeyboardKeyPressed();
 
         mHardKeyboardAction.initializeAction(event, mMetaState);
 
-        InputConnection ic = getCurrentInputConnection();
-
-        switch (keyCode) {
+        switch (keyEventKeyCode) {
             /****
              * SPECIAL translated HW keys If you add new keys here, do not forget
              * to add to the
@@ -967,7 +987,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     return true;
                 }
                 // DO NOT DELAY CAMERA KEY with unneeded checks in default mark
-                return super.onKeyDown(keyCode, event);
+                return super.onKeyDown(keyEventKeyCode, event);
             case KeyEvent.KEYCODE_FOCUS:
                 if (shouldTranslateSpecialKeys
                         && mAskPrefs.useCameraKeyForBackspaceBackword()) {
@@ -975,7 +995,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     return true;
                 }
                 // DO NOT DELAY FOCUS KEY with unneeded checks in default mark
-                return super.onKeyDown(keyCode, event);
+                return super.onKeyDown(keyEventKeyCode, event);
             case KeyEvent.KEYCODE_VOLUME_UP:
                 if (shouldTranslateSpecialKeys
                         && mAskPrefs.useVolumeKeyForLeftRight()) {
@@ -984,7 +1004,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 }
                 // DO NOT DELAY VOLUME UP KEY with unneeded checks in default
                 // mark
-                return super.onKeyDown(keyCode, event);
+                return super.onKeyDown(keyEventKeyCode, event);
             case KeyEvent.KEYCODE_VOLUME_DOWN:
                 if (shouldTranslateSpecialKeys
                         && mAskPrefs.useVolumeKeyForLeftRight()) {
@@ -993,7 +1013,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 }
                 // DO NOT DELAY VOLUME DOWN KEY with unneeded checks in default
                 // mark
-                return super.onKeyDown(keyCode, event);
+                return super.onKeyDown(keyEventKeyCode, event);
             /****
              * END of SPECIAL translated HW keys code section
              */
@@ -1027,7 +1047,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 Log.d(TAG + "-meta-key",
                         getMetaKeysStates("onKeyDown before handle"));
                 mMetaState = MyMetaKeyKeyListener.handleKeyDown(mMetaState,
-                        keyCode, event);
+                        keyEventKeyCode, event);
                 Log.d(TAG + "-meta-key",
                         getMetaKeysStates("onKeyDown after handle"));
                 break;
@@ -1056,7 +1076,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                     try {
                         // issue 393, backword on the hw keyboard!
                         if (mAskPrefs.useBackword()
-                                && keyCode == KeyEvent.KEYCODE_DEL
+                                && keyEventKeyCode == KeyEvent.KEYCODE_DEL
                                 && event.isShiftPressed()) {
                             handleBackWord(ic);
                             return true;
@@ -1066,35 +1086,9 @@ public class AnySoftKeyboard extends InputMethodService implements
                                     .getCurrentKeyboard();
 
                             HardKeyboardTranslator keyTranslator = (HardKeyboardTranslator) current;
+                            keyTranslator.translatePhysicalCharacter(mHardKeyboardAction, this);
 
-                            if (BuildConfig.DEBUG) {
-                                final String keyboardName = current
-                                        .getKeyboardName();
 
-                                Log.d(TAG, "Asking '" + keyboardName
-                                        + "' to translate key: " + keyCode);
-                                Log.v(TAG,
-                                        "Hard Keyboard Action before translation: Shift: "
-                                                + mHardKeyboardAction
-                                                .isShiftActive()
-                                                + ", Alt: "
-                                                + mHardKeyboardAction.isAltActive()
-                                                + ", Key code: "
-                                                + mHardKeyboardAction.getKeyCode()
-                                                + ", changed: "
-                                                + mHardKeyboardAction
-                                                .getKeyCodeWasChanged());
-                            }
-
-                            keyTranslator.translatePhysicalCharacter(
-                                    mHardKeyboardAction, this);
-
-                            Log.v(TAG,
-                                    "Hard Keyboard Action after translation: Key code: "
-                                            + mHardKeyboardAction.getKeyCode()
-                                            + ", changed: "
-                                            + mHardKeyboardAction
-                                            .getKeyCodeWasChanged());
                             if (mHardKeyboardAction.getKeyCodeWasChanged()) {
                                 final int translatedChar = mHardKeyboardAction.getKeyCode();
                                 // typing my own.
@@ -1121,7 +1115,23 @@ public class AnySoftKeyboard extends InputMethodService implements
                             getMetaKeysStates("onKeyDown after adjust"));
                 }
         }
-        return super.onKeyDown(keyCode, event);
+        return super.onKeyDown(keyEventKeyCode, event);
+    }
+
+    private boolean handleSelectionExpending(int keyEventKeyCode, InputConnection ic) {
+        if (mArrowSelectionState && ic != null) {
+            switch (keyEventKeyCode) {
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    ic.setSelection(Math.max(0, mGlobalSelectionStartPosition-1), mGlobalCursorPosition);
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    ic.setSelection(mGlobalSelectionStartPosition, mGlobalCursorPosition+1);
+                    return true;
+                default:
+                    mArrowSelectionState = false;
+            }
+        }
+        return false;
     }
 
     private void switchToNextPhysicalKeyboard(InputConnection ic) {
@@ -1199,7 +1209,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             case KeyEvent.KEYCODE_SHIFT_RIGHT:
             case KeyEvent.KEYCODE_SYM:
                 mMetaState = MyMetaKeyKeyListener.handleKeyUp(mMetaState, keyCode, event);
-                Log.d("AnySoftKeyboard-meta-key", getMetaKeysStates("onKeyUp"));
+                Log.d(TAG + "-meta-key", getMetaKeysStates("onKeyUp"));
                 setInputConnectionMetaStateAsCurrentMetaKeyKeyListenerState();
                 break;
         }
@@ -1207,12 +1217,9 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     private String getMetaKeysStates(String place) {
-        final int shiftState = MyMetaKeyKeyListener.getMetaState(mMetaState,
-                MyMetaKeyKeyListener.META_SHIFT_ON);
-        final int altState = MyMetaKeyKeyListener.getMetaState(mMetaState,
-                MyMetaKeyKeyListener.META_ALT_ON);
-        final int symState = MyMetaKeyKeyListener.getMetaState(mMetaState,
-                MyMetaKeyKeyListener.META_SYM_ON);
+        final int shiftState = MyMetaKeyKeyListener.getMetaState(mMetaState, MyMetaKeyKeyListener.META_SHIFT_ON);
+        final int altState = MyMetaKeyKeyListener.getMetaState(mMetaState, MyMetaKeyKeyListener.META_ALT_ON);
+        final int symState = MyMetaKeyKeyListener.getMetaState(mMetaState, MyMetaKeyKeyListener.META_SYM_ON);
 
         return "Meta keys state at " + place + "- SHIFT:" + shiftState
                 + ", ALT:" + altState + " SYM:" + symState + " bits:"
@@ -1233,27 +1240,11 @@ public class AnySoftKeyboard extends InputMethodService implements
             if (MyMetaKeyKeyListener.getMetaState(mMetaState,
                     MyMetaKeyKeyListener.META_SYM_ON) == 0)
                 clearStatesFlags += KeyEvent.META_SYM_ON;
-            Log.d("AnySoftKeyboard-meta-key",
-                    getMetaKeysStates("setInputConnectionMetaStateAsCurrentMetaKeyKeyListenerState with flags: "
-                            + clearStatesFlags));
             ic.clearMetaKeyStates(clearStatesFlags);
         }
     }
 
-    private boolean addToDictionaries(WordComposer suggestion,
-                                      AutoDictionary.AdditionType type) {
-        final boolean added = checkAddToDictionary(suggestion, type);
-        if (added) {
-            Log.i(TAG, "Word '%s' was added to the auto-dictionary.", suggestion);
-        }
-        return added;
-    }
-
-    /**
-     * Adds to the UserBigramDictionary and/or AutoDictionary
-     */
-    private boolean checkAddToDictionary(WordComposer suggestion,
-                                         AutoDictionary.AdditionType type) {
+    private boolean checkAddToDictionaryWithAutoDictionary(WordComposer suggestion, AutoDictionary.AdditionType type) {
         if (suggestion == null || suggestion.length() < 1)
             return false;
         // Only auto-add to dictionary if auto-correct is ON. Otherwise we'll be
@@ -1288,7 +1279,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 mCommittedLength = mWord.length();
                 mCommittedWord = mWord.getTypedWord();
                 TextEntryState.acceptedTyped(mWord.getTypedWord());
-                addToDictionaries(mWord, AutoDictionary.AdditionType.Typed);
+                checkAddToDictionaryWithAutoDictionary(mWord, AutoDictionary.AdditionType.Typed);
             }
             if (mKeyboardHandler.hasMessages(KeyboardUIStateHandler.MSG_UPDATE_SUGGESTIONS)) {
                 postUpdateSuggestions(-1);
@@ -1296,24 +1287,12 @@ public class AnySoftKeyboard extends InputMethodService implements
         }
     }
 
-    private void swapPunctuationAndSpace() {
-        final InputConnection ic = getCurrentInputConnection();
-        if (ic == null)
-            return;
-        if (!mAskPrefs.shouldSwapPunctuationAndSpace())
-            return;
+    private void swapPunctuationAndSpace(@NonNull InputConnection ic) {
         CharSequence lastTwo = ic.getTextBeforeCursor(2, 0);
-        if (BuildConfig.DEBUG) {
-            String seps = "";
-            for (Character c : mSentenceSeparators)
-                seps += c;
-            Log.d(TAG, "swapPunctuationAndSpace: lastTwo: '" + lastTwo
-                    + "', mSentenceSeparators " + mSentenceSeparators.size()
-                    + " '" + seps + "'");
-        }
+
         if (lastTwo != null && lastTwo.length() == 2
                 && lastTwo.charAt(0) == KeyCodes.SPACE
-                && mSentenceSeparators.contains(lastTwo.charAt(1))) {
+                && isWordSeparator(lastTwo.charAt(1))) {
             ic.beginBatchEdit();
             ic.deleteSurroundingText(2, 0);
             wordBuffer.deleteSurroundingText(2, 0);
@@ -1324,11 +1303,8 @@ public class AnySoftKeyboard extends InputMethodService implements
             Log.d(TAG, "swapPunctuationAndSpace: YES");
         }
     }
-
-    private void swapPeriodAndSpace() {
-        final InputConnection ic = getCurrentInputConnection();
-        if (ic == null)
-            return;
+/*
+    private void swapPeriodAndSpace(@NonNull InputConnection ic) {
         CharSequence lastThree = ic.getTextBeforeCursor(3, 0);
         if (lastThree != null && lastThree.length() == 3
                 && lastThree.charAt(0) == '.'
@@ -1342,31 +1318,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             ic.endBatchEdit();
         }
     }
-
-    private boolean doubleSpace() {
-        // if (!mAutoPunctuate) return;
-        if (!mAskPrefs.isDoubleSpaceChangesToPeriod())
-            return false;
-        final InputConnection ic = getCurrentInputConnection();
-        if (ic == null)
-            return false;
-        CharSequence lastThree = ic.getTextBeforeCursor(3, 0);
-        if (lastThree != null && lastThree.length() == 3
-                && Character.isLetterOrDigit(lastThree.charAt(0))
-                && lastThree.charAt(1) == KeyCodes.SPACE
-                && lastThree.charAt(2) == KeyCodes.SPACE) {
-            ic.beginBatchEdit();
-            ic.deleteSurroundingText(2, 0);
-            wordBuffer.deleteSurroundingText(2, 0);
-            ic.commitText(". ", 1);
-            wordBuffer.insertText(". ");
-            ic.endBatchEdit();
-            mJustAddedAutoSpace = true;
-            return true;
-        }
-        return false;
-    }
-
+*/
     private void removeTrailingSpace() {
         final InputConnection ic = getCurrentInputConnection();
         if (ic == null)
@@ -1381,24 +1333,18 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     public boolean addWordToDictionary(String word) {
-        if (mUserDictionary != null) {
-            boolean added = mUserDictionary.addWord(word, 128);
-            if (added && mCandidateView != null)
-                mCandidateView.notifyAboutWordAdded(word);
-            return added;
-        } else {
-            return false;
-        }
+        boolean added = mSuggest.addWordToUserDictionary(word);
+        if (added && mCandidateView != null)
+            mCandidateView.notifyAboutWordAdded(word);
+        return added;
     }
 
     public void removeFromUserDictionary(String word) {
         mJustAutoAddedWord = false;
-        if (mUserDictionary != null) {
-            mUserDictionary.deleteWord(word);
-            abortCorrection(true, false);
-            if (mCandidateView != null)
-                mCandidateView.notifyAboutRemovedWord(word);
-        }
+        mSuggest.removeWordFromUserDictionary(word);
+        abortCorrection(true, false);
+        if (mCandidateView != null)
+            mCandidateView.notifyAboutRemovedWord(word);
     }
 
     /**
@@ -1428,30 +1374,12 @@ public class AnySoftKeyboard extends InputMethodService implements
         updateShiftStateNow();
     }
 
-    public void onKey(int primaryCode, Key key, int multiTapIndex, int[] nearByKeyCodes, boolean fromUI) {
-        Log.d(TAG, "onKey " + primaryCode);
+    public void onFunctionKey(int primaryCode, Key key, int multiTapIndex, int[] nearByKeyCodes, boolean fromUI) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "onFunctionKey %d", primaryCode);
+
         final InputConnection ic = getCurrentInputConnection();
 
         switch (primaryCode) {
-            case KeyCodes.ENTER:
-            case KeyCodes.SPACE:
-                //shortcut. Nothing more.
-                handleSeparator(primaryCode);
-                //should we switch to alphabet keyboard?
-                if (!mKeyboardSwitcher.isAlphabetMode()) {
-                    Log.d(TAG, "SPACE/ENTER while in symbols mode");
-                    if (mAskPrefs.getSwitchKeyboardOnSpace()) {
-                        Log.d(TAG, "Switching to Alphabet is required by the user");
-                        mKeyboardSwitcher.nextKeyboard(getCurrentInputEditorInfo(), NextKeyboardType.Alphabet);
-                    }
-                }
-                break;
-            case KeyCodes.DELETE_WORD:
-                if (ic == null)// if we don't want to do anything, lets check
-                    // null first.
-                    break;
-                handleBackWord(ic);
-                break;
             case KeyCodes.DELETE:
                 if (ic == null)// if we don't want to do anything, lets check null first.
                     break;
@@ -1467,6 +1395,25 @@ public class AnySoftKeyboard extends InputMethodService implements
                 } else {
                     handleDeleteLastCharacter(false);
                 }
+                break;
+            case KeyCodes.SHIFT:
+                if (fromUI) {
+                    handleShift();
+                } else {
+                    //not from UI (user not actually pressed that button)
+                    onPress(primaryCode);
+                    onRelease(primaryCode);
+                }
+                break;
+            case KeyCodes.SHIFT_LOCK:
+                mShiftKeyState.toggleLocked();
+                handleShift();
+                break;
+            case KeyCodes.DELETE_WORD:
+                if (ic == null)// if we don't want to do anything, lets check
+                    // null first.
+                    break;
+                handleBackWord(ic);
                 break;
             case KeyCodes.CLEAR_INPUT:
                 if (ic != null) {
@@ -1486,19 +1433,6 @@ public class AnySoftKeyboard extends InputMethodService implements
                     onRelease(primaryCode);
                 }
                 break;
-            case KeyCodes.SHIFT:
-                if (fromUI) {
-                    handleShift();
-                } else {
-                    //not from UI (user not actually pressed that button)
-                    onPress(primaryCode);
-                    onRelease(primaryCode);
-                }
-                break;
-            case KeyCodes.SHIFT_LOCK:
-                mShiftKeyState.toggleLocked();
-                handleShift();
-                break;
             case KeyCodes.CTRL_LOCK:
                 mControlKeyState.toggleLocked();
                 handleControl();
@@ -1509,7 +1443,11 @@ public class AnySoftKeyboard extends InputMethodService implements
                 break;
             case KeyCodes.ARROW_RIGHT:
                 wordBuffer.moveCursorToRight();
-                sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT);
+                final int keyEventKeyCode = primaryCode == KeyCodes.ARROW_LEFT?
+                        KeyEvent.KEYCODE_DPAD_LEFT : KeyEvent.KEYCODE_DPAD_RIGHT;
+                if (!handleSelectionExpending(keyEventKeyCode, ic)) {
+                    sendDownUpKeyEvents(keyEventKeyCode);
+                }
                 break;
             case KeyCodes.ARROW_UP:
                 sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_UP);
@@ -1656,8 +1594,49 @@ public class AnySoftKeyboard extends InputMethodService implements
             case KeyCodes.CLIPBOARD_CUT:
                 handleClipboardOperation(key, primaryCode);
                 break;
+            case KeyCodes.CLIPBOARD_SELECT_ALL:
+                final CharSequence toLeft = ic.getTextBeforeCursor(10240, 0);
+                final CharSequence toRight = ic.getTextAfterCursor(10240, 0);
+                final int leftLength = toLeft == null? 0 : toLeft.length();
+                final int rightLength = toRight == null? 0 : toRight.length();
+                if (leftLength != 0 || rightLength != 0) {
+                    ic.setSelection(0, leftLength + rightLength);
+                }
+                break;
+            case KeyCodes.CLIPBOARD_SELECT:
+                mArrowSelectionState = !mArrowSelectionState;
+                break;
             case KeyCodes.CLIPBOARD_PASTE_POPUP:
                 showAllClipboardEntries(key);
+                break;
+            default:
+                if (BuildConfig.DEBUG) {
+                    //this should not happen! We should handle ALL function keys.
+                    throw new RuntimeException("UNHANDLED FUNCTION KEY! primary code "+primaryCode);
+                } else {
+                    Log.w(TAG, "UNHANDLED FUNCTION KEY! primary code %d. Ignoring.", primaryCode);
+                }
+        }
+    }
+
+    public void onNonFunctionKey(int primaryCode, Key key, int multiTapIndex, int[] nearByKeyCodes, boolean fromUI) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "onFunctionKey %d", primaryCode);
+
+        final InputConnection ic = getCurrentInputConnection();
+
+        switch (primaryCode) {
+            case KeyCodes.ENTER:
+            case KeyCodes.SPACE:
+                //shortcut. Nothing more.
+                handleSeparator(primaryCode);
+                //should we switch to alphabet keyboard?
+                if (!mKeyboardSwitcher.isAlphabetMode()) {
+                    Log.d(TAG, "SPACE/ENTER while in symbols mode");
+                    if (mAskPrefs.getSwitchKeyboardOnSpace()) {
+                        Log.d(TAG, "Switching to Alphabet is required by the user");
+                        mKeyboardSwitcher.nextKeyboard(getCurrentInputEditorInfo(), NextKeyboardType.Alphabet);
+                    }
+                }
                 break;
             case KeyCodes.TAB:
                 sendTab();
@@ -1666,7 +1645,7 @@ public class AnySoftKeyboard extends InputMethodService implements
                 sendEscape();
                 break;
             default:
-                // Issue 146: Right to left langs require reversed parenthesis
+                // Issue 146: Right to left languages require reversed parenthesis
                 if (mKeyboardSwitcher.isRightToLeftMode()) {
                     if (primaryCode == (int) ')')
                         primaryCode = (int) '(';
@@ -1691,10 +1670,24 @@ public class AnySoftKeyboard extends InputMethodService implements
                         handleCharacter(primaryCode, key, multiTapIndex,
                                 nearByKeyCodes);
                     }
-                    // resetting the mSpaceSent, which is set to true upon selecting candidate
                     mJustAddedAutoSpace = false;
                 }
                 break;
+        }
+    }
+
+    public void onKey(int primaryCode, Key key, int multiTapIndex, int[] nearByKeyCodes, boolean fromUI) {
+        if (primaryCode > 0) onNonFunctionKey(primaryCode, key, multiTapIndex, nearByKeyCodes, fromUI);
+        else onFunctionKey(primaryCode, key, multiTapIndex, nearByKeyCodes, fromUI);
+
+        setSpaceTimeStamp(primaryCode == KeyCodes.SPACE);
+    }
+
+    private void setSpaceTimeStamp(boolean isSpace) {
+        if (isSpace) {
+            mLastSpaceTimeStamp = SystemClock.uptimeMillis();
+        } else {
+            mLastSpaceTimeStamp = NEVER_TIME_STAMP;
         }
     }
 
@@ -1745,7 +1738,6 @@ public class AnySoftKeyboard extends InputMethodService implements
                 }
                 break;
         }
-
     }
 
     private void openQuickTextPopup(Key key) {
@@ -1906,7 +1898,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             //just now, the user had cause onText to add text to input.
             //but after that, immediately pressed delete. So I'm guessing deleting the entire text is needed
             final int onTextLength = onTextText.length();
-            Log.d(TAG, "Deleting the entire 'onText' input " + onTextText);
+            Log.d(TAG, "Deleting the entire 'onText' input.");
             CharSequence cs = ic.getTextBeforeCursor(onTextLength, 0);
             if (onTextText.equals(cs)) {
                 ic.deleteSurroundingText(onTextLength, 0);
@@ -1990,8 +1982,7 @@ public class AnySoftKeyboard extends InputMethodService implements
 
         boolean deleteChar = false;
         if (mPredicting) {
-            final boolean wordManipulation = mWord.length() > 0
-                    && mWord.cursorPosition() > 0;
+            final boolean wordManipulation = mWord.length() > 0 && mWord.cursorPosition() > 0;
             if (wordManipulation) {
                 mWord.deleteLast();
                 final int cursorPosition;
@@ -2027,8 +2018,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         if (TextEntryState.getState() == TextEntryState.State.UNDO_COMMIT) {
             revertLastWord(deleteChar);
         } else if (deleteChar) {
-            if (mCandidateView != null
-                    && mCandidateView.dismissAddToDictionaryHint()) {
+            if (mCandidateView != null && mCandidateView.dismissAddToDictionaryHint()) {
                 // Go back to the suggestion mode if the user canceled the
                 // "Touch again to save".
                 // NOTE: we don't revert the word when backspacing
@@ -2100,7 +2090,6 @@ public class AnySoftKeyboard extends InputMethodService implements
         mSuggest.resetNextWordSentence();
         mJustAutoAddedWord = false;
         if (force || TextEntryState.isCorrecting()) {
-            Log.d(TAG, "abortCorrection will actually abort correct");
             mKeyboardHandler.removeMessages(KeyboardUIStateHandler.MSG_UPDATE_SUGGESTIONS);
             mKeyboardHandler.removeMessages(KeyboardUIStateHandler.MSG_RESTART_NEW_WORD_SUGGESTIONS);
 
@@ -2110,7 +2099,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             clearSuggestions();
 
             TextEntryState.reset();
-            mUndoCommitCursorPosition = -2;
+            mUndoCommitCursorPosition = UNDO_COMMIT_NONE;
             mWord.reset();
             mPredicting = false;
             mJustAddedAutoSpace = false;
@@ -2124,11 +2113,12 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     private void handleCharacter(final int primaryCode, Key key, int multiTapIndex, int[] nearByKeyCodes) {
-        Log.d(TAG, "handleCharacter: " + primaryCode + ", isPredictionOn:"
-                + isPredictionOn() + ", mPredicting:" + mPredicting);
+        if (BuildConfig.DEBUG) Log.d(TAG, "handleCharacter: %d, isPredictionOn: %s, mPredicting: %s", primaryCode, isPredictionOn(), mPredicting);
+
+        mExpectingSelectionUpdateBy = SystemClock.uptimeMillis() + MAX_TIME_TO_EXPECT_SELECTION_UPDATE;
         if (!mPredicting && isPredictionOn() && isAlphabet(primaryCode) && !isCursorTouchingWord()) {
             mPredicting = true;
-            mUndoCommitCursorPosition = -2;// so it will be marked the next time
+            mUndoCommitCursorPosition = UNDO_COMMIT_NONE;
             mWord.reset();
             mAutoCorrectOn = mAutoComplete;
         }
@@ -2153,9 +2143,7 @@ public class AnySoftKeyboard extends InputMethodService implements
 
             final InputConnection ic = getCurrentInputConnection();
             if (mWord.add(primaryCodeToOutput, nearByKeyCodes)) {
-                Toast note = Toast
-                        .makeText(
-                                getApplicationContext(),
+                Toast note = Toast.makeText(getApplicationContext(),
                                 "Check the logcat for a note from AnySoftKeyboard developers!",
                                 Toast.LENGTH_LONG);
                 note.show();
@@ -2180,20 +2168,17 @@ public class AnySoftKeyboard extends InputMethodService implements
             if (ic != null) {
                 final int cursorPosition;
                 if (mWord.cursorPosition() != mWord.length()) {
-                    Log.d(TAG,
-                            "Cursor is not at the end of the word. I'll need to reposition");
-                    cursorPosition = getCursorPosition(ic);
+                    //Cursor is not at the end of the word. I'll need to reposition
+                    cursorPosition = mGlobalCursorPosition + 1/*adding the new character*/;
+                    ic.beginBatchEdit();
                 } else {
                     cursorPosition = -1;
                 }
 
-                if (cursorPosition >= 0)
-                    ic.beginBatchEdit();
-
                 ic.setComposingText(mWord.getTypedWord(), 1);
                 wordBuffer.setComposingText(mWord.getTypedWord().toString());
-                if (cursorPosition >= 0) {
-                    ic.setSelection(cursorPosition + 1, cursorPosition + 1);
+                if (cursorPosition > 0) {
+                    ic.setSelection(cursorPosition, cursorPosition);
                     ic.endBatchEdit();
                 }
             }
@@ -2227,10 +2212,9 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     private void handleSeparator(int primaryCode) {
-        Log.d(TAG, "handleSeparator: " + primaryCode);
-
+        mExpectingSelectionUpdateBy = SystemClock.uptimeMillis() + MAX_TIME_TO_EXPECT_SELECTION_UPDATE;
         //will not show next-word suggestion in case of a new line or if the separator is a sentence separator.
-        boolean isEndOfSentence = (primaryCode == KeyCodes.ENTER || mSentenceSeparators.contains(Character.valueOf((char)primaryCode)));
+        boolean isEndOfSentence = (primaryCode == KeyCodes.ENTER || mSentenceSeparators.get(primaryCode));
 
         // Should dismiss the "Touch again to save" message when handling
         // separator
@@ -2238,7 +2222,6 @@ public class AnySoftKeyboard extends InputMethodService implements
             postUpdateSuggestions();
         }
 
-        boolean pickedDefault = false;
         // Handle separator
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
@@ -2256,8 +2239,8 @@ public class AnySoftKeyboard extends InputMethodService implements
             // elision
             // requires the last vowel to be removed.
             //Also, ACTION does not invoke default picking. See https://github.com/AnySoftKeyboard/AnySoftKeyboard/issues/198
-            if (mAutoCorrectOn && primaryCode != '\'' && primaryCode != KeyCodes.ENTER) {
-                pickedDefault = pickDefaultSuggestion();
+            if (primaryCode != '\'') {
+                pickDefaultSuggestion(mAutoCorrectOn && primaryCode != KeyCodes.ENTER);
                 // Picked the suggestion by the space key. We consider this
                 // as "added an auto space".
                 if (primaryCode == KeyCodes.SPACE) {
@@ -2294,6 +2277,7 @@ public class AnySoftKeyboard extends InputMethodService implements
             }
         } else {
             sendKeyChar((char) primaryCode);
+            TextEntryState.typedCharacter((char) primaryCode, true);
 
             try {
                 Log.d(LoggerUtil.TAG, "Writing White space: ["+((char) primaryCode)+"]");
@@ -2301,27 +2285,22 @@ public class AnySoftKeyboard extends InputMethodService implements
             } catch (IOException e) {
                 Log.d(LoggerUtil.TAG, "Error writing white space to log!", e);
             }
-        }
-
-        // Handle the case of ". ." -> " .." with auto-space if necessary
-        // before changing the TextEntryState.
-        if (mJustAddedAutoSpace && primaryCode == '.') {
-            swapPeriodAndSpace();
-        }
-
-        TextEntryState.typedCharacter((char) primaryCode, true);
-
-        if (TextEntryState.getState() == TextEntryState.State.PUNCTUATION_AFTER_ACCEPTED
-                && primaryCode != KeyCodes.ENTER) {
-            swapPunctuationAndSpace();
-        } else if (/* isPredictionOn() && */primaryCode == ' ') {
-            if (doubleSpace()) {
-                isEndOfSentence = true;
+            if (ic != null) {
+                if (primaryCode == KeyCodes.SPACE) {
+                    if (mAskPrefs.isDoubleSpaceChangesToPeriod()) {
+                        if ((SystemClock.uptimeMillis() - mLastSpaceTimeStamp) < ((long) mAskPrefs.getMultiTapTimeout())) {
+                            ic.deleteSurroundingText(2, 0);
+                            ic.commitText(". ", 1);
+                            mJustAddedAutoSpace = true;
+                            isEndOfSentence = true;
+                        }
+                    }
+                } else if (mJustAddedAutoSpace && mAskPrefs.shouldSwapPunctuationAndSpace() && primaryCode != KeyCodes.ENTER) {
+                    swapPunctuationAndSpace(ic);
+                }
             }
         }
-        if (pickedDefault && mWord.getPreferredWord() != null) {
-            TextEntryState.acceptedDefault(mWord.getTypedWord(), mWord.getPreferredWord());
-        }
+
         if (ic != null) {
             ic.endBatchEdit();
         }
@@ -2335,7 +2314,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         }
     }
 
-    private void handleClose() {
+    protected void handleClose() {
         boolean closeSelf = true;
 
         if (mInputView != null)
@@ -2413,23 +2392,24 @@ public class AnySoftKeyboard extends InputMethodService implements
         setCandidatesViewShown(shouldCandidatesStripBeShown() || mCompletionOn);
     }
 
-    private boolean pickDefaultSuggestion() {
+    private boolean pickDefaultSuggestion(boolean autoCorrectToPreferred) {
 
         // Complete any pending candidate query first
         if (mKeyboardHandler.hasMessages(KeyboardUIStateHandler.MSG_UPDATE_SUGGESTIONS)) {
             postUpdateSuggestions(-1);
         }
 
-        final CharSequence bestWord = mWord.getPreferredWord();
-        Log.d(TAG, "pickDefaultSuggestion: bestWord:" + bestWord);
+        final CharSequence typedWord = mWord.getTypedWord();
+        final CharSequence bestWord = autoCorrectToPreferred? mWord.getPreferredWord() : typedWord;
+        Log.d(TAG, "pickDefaultSuggestion: bestWord: %s, since mAutoCorrectOn is %s", bestWord, mAutoCorrectOn);
 
         if (!TextUtils.isEmpty(bestWord)) {
-            final CharSequence typedWord = mWord.getTypedWord();
             TextEntryState.acceptedDefault(typedWord, bestWord);
             final boolean fixed = !typedWord.equals(pickSuggestion(bestWord, !bestWord.equals(typedWord)));
             if (!fixed) {//if the word typed was auto-replaced, we should not learn it.
                 // Add the word to the auto dictionary if it's not a known word
-                addToDictionaries(mWord, AutoDictionary.AdditionType.Typed);
+                // this is "typed" if the auto-correction is off, or "picked" if it is on or momentarily off.
+                checkAddToDictionaryWithAutoDictionary(mWord, mAutoComplete? AutoDictionary.AdditionType.Picked : AutoDictionary.AdditionType.Typed);
             }
             return true;
         }
@@ -2460,27 +2440,31 @@ public class AnySoftKeyboard extends InputMethodService implements
             TextEntryState.acceptedSuggestion(mWord.getTypedWord(), suggestion);
             // Follow it with a space
             if (mAutoSpace && !correcting) {
-                sendSpace();
+                sendKeyChar((char) KeyCodes.SPACE);
                 mJustAddedAutoSpace = true;
+                setSpaceTimeStamp(true);
+                TextEntryState.typedCharacter(' ', true);
             }
             // Add the word to the auto dictionary if it's not a known word
             mJustAutoAddedWord = false;
             if (index == 0) {
-                mJustAutoAddedWord = addToDictionaries(mWord, AutoDictionary.AdditionType.Picked);
+                mJustAutoAddedWord = checkAddToDictionaryWithAutoDictionary(mWord, AutoDictionary.AdditionType.Picked);
             }
 
-            final boolean showingAddToDictionaryHint = !mJustAutoAddedWord
+            final boolean showingAddToDictionaryHint =
+                    (!mJustAutoAddedWord)
                     && index == 0
                     && (mQuickFixes || mShowSuggestions)
-                    && !mSuggest.isValidWord(suggestion)// this is for the case that the word was auto-added upon picking
-                    && !mSuggest.isValidWord(suggestion.toString().toLowerCase(getCurrentKeyboard().getLocale()));
+                    && (!mSuggest.isValidWord(suggestion))// this is for the case that the word was auto-added upon picking
+                    && (!mSuggest.isValidWord(suggestion.toString().toLowerCase(getCurrentKeyboard().getLocale())));
 
-            if (!mJustAutoAddedWord) {
-                if (showingAddToDictionaryHint && mCandidateView != null) {
-                    mCandidateView.showAddToDictionaryHint(suggestion);
-                }
-            }
-            if (!TextUtils.isEmpty(mCommittedWord)) {
+            if (showingAddToDictionaryHint) {
+                TextEntryState.acceptedSuggestionAddedToDictionary();
+                if (mCandidateView != null) mCandidateView.showAddToDictionaryHint(suggestion);
+            } else if (!TextUtils.isEmpty(mCommittedWord) && !mJustAutoAddedWord) {
+                //showing next-words if:
+                //showingAddToDictionaryHint == false, we most likely do not have a next-word suggestion! The committed word is not in the dictionary
+                //mJustAutoAddedWord == false, we most likely do not have a next-word suggestion for a newly added word.
                 setSuggestions(mSuggest.getNextSuggestions(mCommittedWord, mWord.isAllUpperCase()), false, false, false);
                 mWord.setFirstCharCapitalized(false);
             }
@@ -2512,7 +2496,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         if (ic != null) {
             wordBuffer.insertText(mWord);
             if (correcting) {
-                AnyApplication.getDeviceSpecific().commitCorrectionToInputConnection(ic, mWord);
+                AnyApplication.getDeviceSpecific().commitCorrectionToInputConnection(ic, mGlobalCursorPosition - mWord.getTypedWord().length(), mWord.getTypedWord(), mWord.getPreferredWord());
                 // and drawing pop-out text
                 mInputView.popTextOutOfKey(mWord.getPreferredWord());
             } else {
@@ -2522,6 +2506,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         mPredicting = false;
         mCommittedLength = suggestion.length();
         mCommittedWord = suggestion;
+        mUndoCommitCursorPosition = UNDO_COMMIT_WAITING_TO_RECORD_POSITION;
 
         clearSuggestions();
 
@@ -2538,8 +2523,7 @@ public class AnySoftKeyboard extends InputMethodService implements
         // 1 character, I get
         // the entire text. This causes me to incorrectly detect restart
         // suggestions...
-        if (!TextUtils.isEmpty(toLeft) && toLeft.length() == 1
-                && !isWordSeparator(toLeft.charAt(0))) {
+        if (!TextUtils.isEmpty(toLeft) && toLeft.length() == 1 && !isWordSeparator(toLeft.charAt(0))) {
             return true;
         }
 
@@ -2550,28 +2534,21 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     public void revertLastWord(boolean deleteChar) {
-        Log.d(TAG, "revertLastWord deleteChar:" + deleteChar
-                + ", mWord.size:" + mWord.length() + " mPredicting:"
-                + mPredicting + " mCommittedLength" + mCommittedLength);
-
         wordBuffer.revertLastCorrection();
 
-        final int length = mWord.length();// mComposing.length();
+        final int length = mWord.length();
         if (!mPredicting && length > 0) {
             mAutoCorrectOn = false;
             final CharSequence typedWord = mWord.getTypedWord();
             final InputConnection ic = getCurrentInputConnection();
             mPredicting = true;
-            mUndoCommitCursorPosition = -2;
+            mUndoCommitCursorPosition = UNDO_COMMIT_NONE;
             ic.beginBatchEdit();
-            // mJustRevertedSeparator = ic.getTextBeforeCursor(1, 0);
             if (deleteChar)
                 ic.deleteSurroundingText(1, 0);
             int toDelete = mCommittedLength;
-            CharSequence toTheLeft = ic
-                    .getTextBeforeCursor(mCommittedLength, 0);
-            if (toTheLeft != null && toTheLeft.length() > 0
-                    && isWordSeparator(toTheLeft.charAt(0))) {
+            CharSequence toTheLeft = ic.getTextBeforeCursor(mCommittedLength, 0);
+            if (toTheLeft != null && toTheLeft.length() > 0 && isWordSeparator(toTheLeft.charAt(0))) {
                 toDelete--;
             }
             ic.deleteSurroundingText(toDelete, 0);
@@ -2579,13 +2556,10 @@ public class AnySoftKeyboard extends InputMethodService implements
             TextEntryState.backspace();
             ic.endBatchEdit();
             postUpdateSuggestions(-1);
-            if (mJustAutoAddedWord && mUserDictionary != null) {
-                // we'll also need to REMOVE the word from the user dictionary
-                // now...
-                // Since the user revert the committed word, and ASK auto-added
-                // that word, this word will need to be removed.
+            if (mJustAutoAddedWord) {
                 removeFromUserDictionary(typedWord.toString());
             }
+            mInputView.revertPopTextOutOfKey();
         } else {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
             // mJustRevertedSeparator = null;
@@ -2596,32 +2570,14 @@ public class AnySoftKeyboard extends InputMethodService implements
         return (!isAlphabet(code));
     }
 
-    private void sendSpace() {
-        sendKeyChar((char) KeyCodes.SPACE);
-    }
-
     public boolean preferCapitalization() {
         return mWord.isFirstCharCapitalized();
     }
 
     private void nextAlterKeyboard(EditorInfo currentEditorInfo) {
-        Log.d(TAG, "nextAlterKeyboard: currentEditorInfo.inputType="
-                + currentEditorInfo.inputType);
-
-        // AnyKeyboard currentKeyboard = mKeyboardSwitcher.getCurrentKeyboard();
-        if (getCurrentKeyboard() == null) {
-            Log.d(TAG,
-                    "nextKeyboard: Looking for next keyboard. No current keyboard.");
-        } else {
-            Log.d(TAG,
-                    "nextKeyboard: Looking for next keyboard. Current keyboard is:"
-                            + getCurrentKeyboard().getKeyboardName());
-        }
-
         mKeyboardSwitcher.nextAlterKeyboard(currentEditorInfo);
 
-        Log.i(TAG, "nextAlterKeyboard: Setting next keyboard to: "
-                + getCurrentKeyboard().getKeyboardName());
+        Log.d(TAG, "nextAlterKeyboard: Setting next keyboard to: %s", getCurrentKeyboard().getKeyboardName());
     }
 
     private void nextKeyboard(EditorInfo currentEditorInfo, KeyboardSwitcher.NextKeyboardType type) {
@@ -2633,9 +2589,14 @@ public class AnySoftKeyboard extends InputMethodService implements
         AnyKeyboard keyboard = mKeyboardSwitcher.nextKeyboard(currentEditorInfo, type);
 
         if (!(keyboard instanceof GenericKeyboard)) {
-            mSentenceSeparators = keyboard.getSentenceSeparators();
+            fillSeparatorsSparseArray(mSentenceSeparators, keyboard.getSentenceSeparators());
         }
         setKeyboardFinalStuff(type);
+    }
+
+    private static void fillSeparatorsSparseArray(SparseBooleanArray sparseBooleanArray, char[] chars) {
+        sparseBooleanArray.clear();
+        for(char separator : chars) sparseBooleanArray.put(separator, true);
     }
 
     private void setKeyboardFinalStuff(KeyboardSwitcher.NextKeyboardType type) {
@@ -2679,13 +2640,13 @@ public class AnySoftKeyboard extends InputMethodService implements
 
     public void onPinch() {
         final int keyCode = mAskPrefs.getGesturePinchKeyCode();
-        Log.d(TAG, "onPinch => code " + keyCode);
+        Log.d(TAG, "onPinch => code %d", keyCode);
         if (keyCode != 0) onKey(keyCode, null, -1, new int[]{keyCode}, false/*not directly pressed the UI key*/);
     }
 
     public void onSeparate() {
         final int keyCode = mAskPrefs.getGestureSeparateKeyCode();
-        Log.d(TAG, "onSeparate => code " + keyCode);
+        Log.d(TAG, "onSeparate => code %d", keyCode);
         if (keyCode != 0) onKey(keyCode, null, -1, new int[]{keyCode}, false/*not directly pressed the UI key*/);
     }
 
@@ -2698,8 +2659,10 @@ public class AnySoftKeyboard extends InputMethodService implements
     }
 
     public void onPress(int primaryCode) {
+        if (mArrowSelectionState && (primaryCode != KeyCodes.ARROW_LEFT && primaryCode != KeyCodes.ARROW_RIGHT)) {
+            mArrowSelectionState = false;
+        }
         InputConnection ic = getCurrentInputConnection();
-        Log.d(TAG, "onPress:" + primaryCode);
         if (mVibrationDuration > 0 && primaryCode != 0 && mVibrator != null) {
             try {
                 mVibrator.vibrate(mVibrationDuration);
@@ -2756,16 +2719,12 @@ public class AnySoftKeyboard extends InputMethodService implements
 
             }
 
-            Log.d(TAG, "Sound on key-pressed. Sound ID:" + keyFX
-                    + " with volume " + fxVolume);
-
             mAudioManager.playSoundEffect(keyFX, fxVolume);
         }
     }
 
     public void onRelease(int primaryCode) {
         InputConnection ic = getCurrentInputConnection();
-        Log.d(TAG, "onRelease:" + primaryCode);
         if (primaryCode == KeyCodes.SHIFT) {
             mShiftKeyState.onRelease(mAskPrefs.getMultiTapTimeout());
             handleShift();
@@ -2918,10 +2877,9 @@ public class AnySoftKeyboard extends InputMethodService implements
                 }
 
                 mSuggest.setMainDictionary(getApplicationContext(), dictionaryBuilder);
-                String localeForSupportingDictionaries = dictionaryBuilder != null ?
-                        dictionaryBuilder.getLanguage() : defaultDictionary;
-                mUserDictionary = mSuggest.getDictionaryFactory().createUserDictionary(getApplicationContext(), localeForSupportingDictionaries);
-                mSuggest.setUserDictionary(mUserDictionary);
+                String localeForSupportingDictionaries = dictionaryBuilder != null ? dictionaryBuilder.getLanguage() : defaultDictionary;
+                Dictionary userDictionary = mSuggest.getDictionaryFactory().createUserDictionary(getApplicationContext(), localeForSupportingDictionaries);
+                mSuggest.setUserDictionary(userDictionary);
 
                 mAutoDictionary = mSuggest.getDictionaryFactory().createAutoDictionary(getApplicationContext(), localeForSupportingDictionaries);
                 mSuggest.setAutoDictionary(mAutoDictionary);
@@ -2979,19 +2937,12 @@ public class AnySoftKeyboard extends InputMethodService implements
                         di.dismiss();
                         Editor editor = mPrefs.edit();
                         if (position == 0) {
-                            Log.d(TAG, "Dictionary override disabled. User selected default.");
                             editor.remove(dictionaryOverridingKey);
                             showToastMessage(R.string.override_disabled, true);
                         } else {
                             CharSequence id = ids[position];
                             String selectedDictionaryId = (id == null) ? null : id.toString();
                             String selectedLanguageString = items[position].toString();
-                            Log.d(TAG,
-                                    "Dictionary override. User selected "
-                                            + selectedLanguageString
-                                            + " which corresponds to id "
-                                            + ((selectedDictionaryId == null) ? "(null)"
-                                            : selectedDictionaryId));
                             editor.putString(dictionaryOverridingKey, selectedDictionaryId);
                             showToastMessage(getString(R.string.override_enabled, selectedLanguageString), true);
                         }
@@ -3038,7 +2989,7 @@ public class AnySoftKeyboard extends InputMethodService implements
 
             mKeyboardSwitcher.flushKeyboardsCache();
             // new WxH. need new object.
-            mSentenceSeparators = getCurrentKeyboard().getSentenceSeparators();
+            fillSeparatorsSparseArray(mSentenceSeparators, getCurrentKeyboard().getSentenceSeparators());
 
             // should it be always on?
             if (mKeyboardChangeNotificationType.equals(KEYBOARD_NOTIFICATION_ALWAYS))
@@ -3068,38 +3019,30 @@ public class AnySoftKeyboard extends InputMethodService implements
                 mKeyboardInCondensedMode = CondenseType.CompactToLeft;
                 break;
         }
-
-        Log.d(TAG, "setInitialCondensedState: defaultCondensed is "
-                + defaultCondensed + " and mKeyboardInCondensedMode is "
-                + mKeyboardInCondensedMode);
     }
 
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         Log.d(TAG, "onSharedPreferenceChanged (key '%s')", key);
         AnyApplication.requestBackupToCloud();
 
-        final boolean isKeyboardKey = key.startsWith(KeyboardAddOnAndBuilder.KEYBOARD_PREF_PREFIX);
-        final boolean isDictionaryKey = key.startsWith("dictionary_");
-        final boolean isQuickTextKey = key.equals(getString(R.string.settings_key_active_quick_text_key));
-        if (isKeyboardKey || isDictionaryKey || isQuickTextKey) {
-            mKeyboardSwitcher.flushKeyboardsCache();
-        }
-
         loadSettings();
 
-        if (key.equals(getString(R.string.settings_key_ext_kbd_bottom_row_key))
-                || key.equals(getString(R.string.settings_key_ext_kbd_top_row_key))
-                || key.equals(getString(R.string.settings_key_ext_kbd_ext_ketboard_key))
-                || key.equals(getString(R.string.settings_key_ext_kbd_hidden_bottom_row_key))
-                || key.equals(getString(R.string.settings_key_keyboard_theme_key))
-                || key.equals("zoom_factor_keys_in_portrait")
-                || key.equals("zoom_factor_keys_in_landscape")
-                || key.equals(getString(R.string.settings_key_smiley_icon_on_smileys_key))
-                || key.equals(getString(R.string.settings_key_long_press_timeout))
-                || key.equals(getString(R.string.settings_key_multitap_timeout))
-                || key.equals(getString(R.string.settings_key_default_split_state))) {
-            // in some cases we do want to force keyboards recreations
-            resetKeyboardView(key.equals(getString(R.string.settings_key_keyboard_theme_key)));
+        if (key.startsWith(KeyboardAddOnAndBuilder.KEYBOARD_PREF_PREFIX) ||
+                key.startsWith("dictionary_") ||
+                key.equals(getString(R.string.settings_key_active_quick_text_key)) ||
+                key.equals(getString(R.string.settings_key_ext_kbd_bottom_row_key)) ||
+                key.equals(getString(R.string.settings_key_ext_kbd_top_row_key)) ||
+                key.equals(getString(R.string.settings_key_ext_kbd_ext_ketboard_key)) ||
+                key.equals(getString(R.string.settings_key_ext_kbd_hidden_bottom_row_key)) ||
+                key.equals(getString(R.string.settings_key_keyboard_theme_key)) ||
+                key.equals("zoom_factor_keys_in_portrait") ||
+                key.equals("zoom_factor_keys_in_landscape") ||
+                key.equals(getString(R.string.settings_key_smiley_icon_on_smileys_key)) ||
+                key.equals(getString(R.string.settings_key_long_press_timeout)) ||
+                key.equals(getString(R.string.settings_key_multitap_timeout)) ||
+                key.equals(getString(R.string.settings_key_default_split_state))) {
+            //this will recreate the keyboard view AND flush the keyboards cache.
+            resetKeyboardView(true);
         }
     }
 
@@ -3140,8 +3083,6 @@ public class AnySoftKeyboard extends InputMethodService implements
 
     private void showToastMessage(CharSequence text, boolean forShortTime) {
         int duration = forShortTime ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG;
-        Log.v(TAG, "showToastMessage: '" + text + "'. For: "
-                + duration);
         Toast.makeText(this.getApplication(), text, duration).show();
     }
 
@@ -3150,10 +3091,6 @@ public class AnySoftKeyboard extends InputMethodService implements
         Log.w(TAG, "The OS has reported that it is low on memory!. I'll try to clear some cache.");
         mKeyboardSwitcher.onLowMemory();
         super.onLowMemory();
-    }
-
-    public boolean promoteToUserDictionary(String word, int frequency) {
-        return !mUserDictionary.isValidWord(word) && mUserDictionary.addWord(word, frequency);
     }
 
     public WordComposer getCurrentWord() {
@@ -3168,10 +3105,12 @@ public class AnySoftKeyboard extends InputMethodService implements
      * whenever the returned value may have changed to have it re-evalauted and
      * applied. This needs to be re-coded for Issue 620
      */
+    @SuppressLint("MissingSuperCall")
     @Override
     public boolean onEvaluateInputViewShown() {
         Configuration config = getResources().getConfiguration();
-        return config.keyboard == Configuration.KEYBOARD_NOKEYS || config.hardKeyboardHidden == Configuration.KEYBOARDHIDDEN_YES;
+        return  config.keyboard == Configuration.KEYBOARD_NOKEYS ||
+                config.hardKeyboardHidden == Configuration.KEYBOARDHIDDEN_YES;
     }
 
     public void onCancel() {

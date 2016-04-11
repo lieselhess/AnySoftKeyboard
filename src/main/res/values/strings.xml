@@ -102,11 +102,13 @@
     <string name="custom_sound_volume">Custom key-press volume</string>
 
     <string name="switch_keyboard_on_space">Space switches keyboards</string>
-    <string name="switch_keyboard_on_space_on_summary">Switch from symbols/numbers to alphabet when pressing space
-    </string>
-    <string name="switch_keyboard_on_space_off_summary">Do not switch from symbols/numbers to alphabet when pressing
-        space
-    </string>
+    <string name="switch_keyboard_on_space_on_summary">Switch from symbols/numbers to alphabet when pressing space</string>
+    <string name="switch_keyboard_on_space_off_summary">Do not switch from symbols/numbers to alphabet when pressing space</string>
+
+    <string name="persistent_layout_per_package_id_title">Remember alphabet layout per App</string>
+    <string name="persistent_layout_per_package_id_off_summary">Use the same layout for all Apps.</string>
+    <string name="persistent_layout_per_package_id_on_summary">Automatically switch to the previous layout used in the App.</string>
+
     <string name="one_shot_quick_text_popup">Auto close after key</string>
     <string name="one_shot_quick_text_popup_on_summary">Close Quick-Text popup after pressing a key</string>
     <string name="one_shot_quick_text_popup_off_summary">Keep Quick-Text popup open until Close key is pressed</string>
@@ -346,7 +348,7 @@
     <string name="lang_key_shows_popup_off_summary">Language key will cycle languages</string>
 
     <string name="auto_caps">Auto-capitalization</string>
-    <string name="grammer_group">Grammar</string>
+    <string name="grammar_group">Grammar</string>
     <string name="keyboard_behavior_group">Keyboard Behavior</string>
     <string name="candidates_on">Show suggestions</string>
     <string name="candidates_on_summary">A list of suggested words will be displayed above the keyboard</string>
@@ -595,6 +597,11 @@
     <string name="setup_wizard_step_one_details">In this step, you\'ll need to enable <i>AnySoftKeyboard</i>. Please check <i>\'AnySoftKeyboard\'</i> in your <i>Language&amp;Input settings</i>. This will allow us to run on your device.</string>
     <string name="setup_wizard_step_one_action">Go to your <i>Language&amp;Input settings</i>…</string>
     <string name="setup_wizard_step_one_action_error_no_settings_activity">Error: Your device does not support 3rd-party keyboards. AnySoftKeyboard can not be activated!</string>
+
+    <string name="setup_wizard_step_permissions_title">Enable Permissions</string>
+    <string name="wizard_step_this_step_complete_text_permissions"><i>AnySoftKeyboard</i> has access to the extra permissions. This will give you additional level of personalization.</string>
+    <string name="setup_wizard_step_permissions_details">In this step, you\'ll can approve <i>AnySoftKeyboard</i> access to the contacts stored on your device. If you wish to block this access, you may disable Contacts Dictionary.</string>
+
     <string name="setup_wizard_top_title">Setup\nAnySoftKeyboard\nfor use</string>
     <string name="setup_wizard_step_two_title">Switch to AnySoftKeyboard</string>
     <string name="setup_wizard_step_two_small_sub_title">Step two of three</string>
@@ -625,4 +632,16 @@
     <string name="next_words_statistics_no_usage">No usage yet. Type a bit more.</string>
     <string name="clipboard_is_empty_toast">Clipboard is empty, there is nothing to paste.</string>
     <string name="clipboard_paste_entries_title">Pick text to paste</string>
+    <string name="next_word_prefs_clear_data">Clear next-word data</string>
+    <string name="next_word_prefs_clear_data_summary">This is irreversible. All your typing history will be cleared.</string>
+    <string name="setup_wizard_step_three_action_show_keyboard">Show me\nAnySoftKeyboard!</string>
+    <string name="setup_wizard_step_three_action_go_to_home_fragment">Go to main page</string>
+    <string name="notification_read_contacts_title">Can I read your contacts?</string>
+    <string name="notification_read_contacts_text">We need to read your contacts to give you a better auto-complete experience.</string>
+    <string name="notification_read_contacts_ticker">Contacts permission needed</string>
+    <string name="contacts_permissions_dialog_message">AnySoftKeyboard is using your contacts names to provide you with a personalized word suggestion: as you type a word, we look for similar words to auto-complete and auto-correct your typing.</string>
+    <string name="allow_permission">Allow</string>
+    <string name="navigate_to_app_permissions">Go to App permissions</string>
+    <string name="turn_off_contacts_dictionary">Turn off Contacts Dictionary</string>
+    <string name="read_more_about_permissions">Read more about permissions…</string>
 </resources>

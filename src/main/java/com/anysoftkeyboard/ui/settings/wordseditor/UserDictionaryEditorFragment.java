@@ -16,6 +16,7 @@
 
 package com.anysoftkeyboard.ui.settings.wordseditor;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -24,6 +25,7 @@ import android.content.DialogInterface;
 import android.database.Cursor;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.support.annotation.VisibleForTesting;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBar;
 import android.support.v7.widget.GridLayoutManager;
@@ -41,6 +43,7 @@ import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
+import com.anysoftkeyboard.PermissionsRequestCodes;
 import com.anysoftkeyboard.base.dictionaries.EditableDictionary;
 import com.anysoftkeyboard.base.dictionaries.WordsCursor;
 import com.anysoftkeyboard.dictionaries.UserDictionary;
@@ -51,6 +54,7 @@ import com.anysoftkeyboard.utils.Log;
 import com.menny.android.anysoftkeyboard.R;
 
 import net.evendanan.chauffeur.lib.FragmentChauffeurActivity;
+import net.evendanan.chauffeur.lib.permissions.PermissionsRequest;
 import net.evendanan.pushingpixels.AsyncTaskWithProgressWindow;
 
 import java.util.ArrayList;
@@ -73,19 +77,57 @@ public class UserDictionaryEditorFragment extends Fragment
 
     static final String TAG = "ASK_UDE";
 
-    Spinner mLanguagesSpinner;
+    private Spinner mLanguagesSpinner;
 
-    WordsCursor mCursor;
+    private WordsCursor mCursor;
     private String mSelectedLocale = null;
-    EditableDictionary mCurrentDictionary;
+    private EditableDictionary mCurrentDictionary;
 
-    RecyclerView mWordsRecyclerView;
+    private RecyclerView mWordsRecyclerView;
 
     private static final Comparator<EditorWord> msWordsComparator = new Comparator<EditorWord>() {
         @Override
         public int compare(EditorWord lhs, EditorWord rhs) {
             return lhs.word.compareTo(rhs.word);
         }
+    };
+    private final OnItemSelectedListener mSpinnerItemSelectedListener = new OnItemSelectedListener() {
+        public void onItemSelected(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
+            mSelectedLocale = ((DictionaryLocale) arg0.getItemAtPosition(arg2)).getLocale();
+            fillWordsList();
+        }
+
+        public void onNothingSelected(AdapterView<?> arg0) {
+            Log.d(TAG, "No locale selected");
+            mSelectedLocale = null;
+        }
+    };
+    private final PermissionsRequest.PermissionsRequestBase mWriteToStoragePermissionRequest = new PermissionsRequest.PermissionsRequestBase(
+            PermissionsRequestCodes.STORAGE_WRITE.getRequestCode(), Manifest.permission.WRITE_EXTERNAL_STORAGE) {
+        @Override
+        public void onPermissionsGranted() {
+            backupToStorage();
+        }
+
+        @Override
+        public void onPermissionsDenied() {/*no-op*/}
+
+        @Override
+        public void onUserDeclinedPermissionsCompletely() {/*no-op*/}
+    };
+
+    private final PermissionsRequest.PermissionsRequestBase mReadFromStoragePermissionRequest = new PermissionsRequest.PermissionsRequestBase(
+            PermissionsRequestCodes.STORAGE_READ.getRequestCode(), Manifest.permission.READ_EXTERNAL_STORAGE) {
+        @Override
+        public void onPermissionsGranted() {
+            restoreFromStorage();
+        }
+
+        @Override
+        public void onPermissionsDenied() {/*no-op*/}
+
+        @Override
+        public void onUserDeclinedPermissionsCompletely() {/*no-op*/}
     };
 
     @Override
@@ -105,17 +147,7 @@ public class UserDictionaryEditorFragment extends Fragment
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        mLanguagesSpinner.setOnItemSelectedListener(new OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-                mSelectedLocale = ((DictionaryLocale) arg0.getItemAtPosition(arg2)).getLocale();
-                fillWordsList();
-            }
-
-            public void onNothingSelected(AdapterView<?> arg0) {
-                Log.d(TAG, "No locale selected");
-                mSelectedLocale = null;
-            }
-        });
+        mLanguagesSpinner.setOnItemSelectedListener(mSpinnerItemSelectedListener);
 
         mWordsRecyclerView = (RecyclerView) view.findViewById(R.id.words_recycler_view);
         mWordsRecyclerView.setHasFixedSize(false);
@@ -137,19 +169,30 @@ public class UserDictionaryEditorFragment extends Fragment
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        MainSettingsActivity mainSettingsActivity = (MainSettingsActivity) getActivity();
+        if (mainSettingsActivity == null) return super.onOptionsItemSelected(item);
         switch (item.getItemId()) {
             case R.id.add_user_word:
                 createEmptyItemForAdd();
                 return true;
             case R.id.backup_words:
-                new BackupUserWordsAsyncTask(UserDictionaryEditorFragment.this, ASK_USER_WORDS_SDCARD_FILENAME).execute();
+                //we required Storage permission
+                mainSettingsActivity.startPermissionsRequest(mWriteToStoragePermissionRequest);
                 return true;
             case R.id.restore_words:
-                new RestoreUserWordsAsyncTask(UserDictionaryEditorFragment.this, ASK_USER_WORDS_SDCARD_FILENAME).execute();
+                mainSettingsActivity.startPermissionsRequest(mReadFromStoragePermissionRequest);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void restoreFromStorage() {
+        new RestoreUserWordsAsyncTask(UserDictionaryEditorFragment.this, ASK_USER_WORDS_SDCARD_FILENAME).execute();
+    }
+
+    private void backupToStorage() {
+        new BackupUserWordsAsyncTask(UserDictionaryEditorFragment.this, ASK_USER_WORDS_SDCARD_FILENAME).execute();
     }
 
     private void createEmptyItemForAdd() {
@@ -164,7 +207,6 @@ public class UserDictionaryEditorFragment extends Fragment
         MainSettingsActivity.setActivityTitle(this, getString(R.string.user_dict_settings_titlebar));
         fillLanguagesSpinner();
     }
-
 
     @Override
     public void onDestroy() {
@@ -319,6 +361,15 @@ public class UserDictionaryEditorFragment extends Fragment
         Activity activity = getActivity();
         if (activity == null) return null;
         return new EditorWordsAdapter(wordsList, LayoutInflater.from(activity), this);
+    }
+
+    /*package*/Spinner getLanguagesSpinner() {
+        return mLanguagesSpinner;
+    }
+
+    @VisibleForTesting
+    /*package*/OnItemSelectedListener getSpinnerItemSelectedListener() {
+        return mSpinnerItemSelectedListener;
     }
 
     protected EditableDictionary getEditableDictionary(String locale) {

@@ -1,15 +1,24 @@
 package versionbuilder
 
-class VersionBuilder {
-    static final int GIT_COMMIT_COUNT_NORMALIZE = 2320;
-    static final int GIT_COMMIT_COUNT_MINOR_NORMALIZE = 140+50+38;
+public class VersionBuilder {
+    static final int GIT_COMMIT_COUNT_NORMALIZE = 2320
+    static final int GIT_COMMIT_COUNT_MINOR_NORMALIZE = 140+50+38+167
 
-    static def buildGitVersionNumber() {
-        return Integer.parseInt('git rev-list --count HEAD'.execute().text.trim()) - GIT_COMMIT_COUNT_NORMALIZE;
+    public static def buildGitVersionNumber() {
+        try {
+            int commits = Integer.parseInt('git rev-list --count HEAD --all'.execute().text.trim())
+            int tags = 'git tag'.execute().text.readLines().size()
+            return commits + tags - GIT_COMMIT_COUNT_NORMALIZE
+        } catch (Exception e) {
+            println("Failed to get version from git data. Error: "+e.message);
+            return 1
+        }
     }
 
-    static def buildGitVersionName() {
-        return String.format("%d.%d.%d", 1, 6, buildGitVersionNumber() - GIT_COMMIT_COUNT_MINOR_NORMALIZE);
+    public static def buildGitVersionName() {
+        int gitVersion = buildGitVersionNumber()
+        if (gitVersion < GIT_COMMIT_COUNT_MINOR_NORMALIZE) gitVersion = GIT_COMMIT_COUNT_MINOR_NORMALIZE + 1
+        return String.format("%d.%d.%d", 1, 7, gitVersion - GIT_COMMIT_COUNT_MINOR_NORMALIZE)
     }
 
 }

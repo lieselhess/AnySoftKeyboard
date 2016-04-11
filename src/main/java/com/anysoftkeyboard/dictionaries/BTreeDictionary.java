@@ -28,7 +28,7 @@ import com.anysoftkeyboard.base.dictionaries.WordComposer;
 import com.anysoftkeyboard.base.dictionaries.WordsCursor;
 import com.anysoftkeyboard.utils.Log;
 import com.menny.android.anysoftkeyboard.AnyApplication;
-import com.menny.android.anysoftkeyboard.FeaturesSet;
+import com.menny.android.anysoftkeyboard.BuildConfig;
 
 public abstract class BTreeDictionary extends EditableDictionary {
 
@@ -74,7 +74,7 @@ public abstract class BTreeDictionary extends EditableDictionary {
             Cursor cursor = wordsCursor.getCursor();
             if (cursor == null) return;
             if (!cursor.moveToFirst()) return;
-            Log.d(TAG, "About to load " + cursor.getCount() + " rows from " + toString());
+            Log.d(TAG, "About to load %d rows from %s", cursor.getCount(), toString());
 
             while (!cursor.isAfterLast() && !isClosed()) {
                 final String word = wordsCursor.getCurrentWord();
@@ -84,9 +84,9 @@ public abstract class BTreeDictionary extends EditableDictionary {
                     addWordFromStorage(word, frequency);
                 }
                 cursor.moveToNext();
-                if (FeaturesSet.DEBUG_LOG) {
+                if (BuildConfig.DEBUG) {
                     if (cursor.getPosition() % 25 == 0) {
-                        Log.d(TAG, "Read " + cursor.getPosition() + " out of " + cursor.getCount() + " words.");
+                        Log.d(TAG, "Read %d out of %d words.", cursor.getPosition(), cursor.getCount());
                     }
                 }
             }
@@ -429,8 +429,6 @@ public abstract class BTreeDictionary extends EditableDictionary {
         }
 
         public void deleteNode(int nodeIndexToDelete) {
-            assert length >= 0;
-
             length--;
             if (length > 0) {
                 for (int i = nodeIndexToDelete; i < length; i++) {

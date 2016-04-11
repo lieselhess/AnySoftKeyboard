@@ -24,7 +24,7 @@ import android.text.TextUtils;
 import com.anysoftkeyboard.base.dictionaries.Dictionary;
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
 import com.anysoftkeyboard.dictionaries.sqlite.AbbreviationsDictionary;
-import com.anysoftkeyboard.utils.CompatUtils;
+import com.anysoftkeyboard.base.utils.CompatUtils;
 import com.anysoftkeyboard.utils.IMEUtil;
 import com.anysoftkeyboard.utils.Log;
 import com.menny.android.anysoftkeyboard.BuildConfig;
@@ -86,6 +86,17 @@ public class Suggest implements Dictionary.WordCallback {
 
     private int mCommonalityMaxLengthDiff = 1;
     private int mCommonalityMaxDistance = 1;
+    private final DictionaryASyncLoader.Listener mContactsDictionaryListener = new DictionaryASyncLoader.Listener() {
+        @Override
+        public void onDictionaryLoadingDone(Dictionary dictionary) {}
+
+        @Override
+        public void onDictionaryLoadingFailed(Dictionary dictionary, Exception exception) {
+            if (dictionary == mContactsDictionary) {
+                mContactsDictionary = null;//resetting it
+            }
+        }
+    };
 
     public Suggest(Context context) {
         mDictionaryFactory = createDictionaryFactory();
@@ -184,7 +195,7 @@ public class Suggest implements Dictionary.WordCallback {
             // config says it should be on, but I have none.
             mContactsDictionary = mDictionaryFactory.createContactsDictionary(context);
             if (mContactsDictionary != null) {//not all devices has contacts-dictionary
-                DictionaryASyncLoader loader = new DictionaryASyncLoader(null);
+                DictionaryASyncLoader loader = new DictionaryASyncLoader(mContactsDictionaryListener);
                 loader.execute(mContactsDictionary);
             }
         }
@@ -411,7 +422,6 @@ public class Suggest implements Dictionary.WordCallback {
         final int prefMaxSuggestions = mPrefMaxSuggestions;
         // Check if it's the same word, only caps are different
         if (compareCaseInsensitive(mLowerOriginalWord, word, offset, length)) {
-            Log.v(TAG, "Suggest::addWord - forced at position 0.");
             pos = 0;
         } else {
             // Check the last one's priority and bail
@@ -461,7 +471,7 @@ public class Suggest implements Dictionary.WordCallback {
             return false;
         }
 
-        Log.v(TAG, "Suggest::isValidWord(%s) mMainDictionaryEnabled:%s mAutoTextEnabled: %s user-dictionary-enabled: %s contacts-dictionary-enabled: %s",
+        if (BuildConfig.DEBUG) Log.v(TAG, "Suggest::isValidWord(%s) mMainDictionaryEnabled:%s mAutoTextEnabled: %s user-dictionary-enabled: %s contacts-dictionary-enabled: %s",
                 word, mMainDictionaryEnabled, mAutoTextEnabled, mUserDictionary != null, mContactsDictionary != null);
 
         if (mMainDictionaryEnabled || mAutoTextEnabled) {
@@ -469,7 +479,7 @@ public class Suggest implements Dictionary.WordCallback {
             final boolean validFromUser = (mUserDictionary != null && mUserDictionary.isValidWord(word));
             final boolean validFromContacts = (mContactsDictionary != null && mContactsDictionary.isValidWord(word));
 
-            Log.v(TAG, "Suggest::isValidWord(%s)validFromMain: %s validFromUser: %s validFromContacts: %s",
+            if (BuildConfig.DEBUG) Log.v(TAG, "Suggest::isValidWord(%s)validFromMain: %s validFromUser: %s validFromContacts: %s",
                     word, validFromMain, validFromUser, validFromContacts);
             return validFromMain || validFromUser
                     || /* validFromAuto || */validFromContacts;
@@ -497,5 +507,13 @@ public class Suggest implements Dictionary.WordCallback {
 
     public DictionaryFactory getDictionaryFactory() {
         return mDictionaryFactory;
+    }
+
+    public boolean addWordToUserDictionary(String word) {
+        return mUserDictionary != null && mUserDictionary.addWord(word, 128);
+    }
+
+    public void removeWordFromUserDictionary(String word) {
+        if (mUserDictionary != null) mUserDictionary.deleteWord(word);
     }
 }

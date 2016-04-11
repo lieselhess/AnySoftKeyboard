@@ -101,15 +101,16 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
     private int mFirstAppVersionInstalled;
 
     private final LinkedList<OnSharedPreferenceChangeListener> mPreferencesChangedListeners = new LinkedList<>();
+    private boolean mAutomaticallySwitchToAppLayout = true;
 
     public AskPrefsImpl(Context context) {
         mContext = context;
 
-        int currentAppVersion = BuildConfig.VERSION_CODE;
         Log.i(TAG, "** Version: " + BuildConfig.VERSION_NAME);
-        Log.i(TAG, "** Release code: " + currentAppVersion);
-        Log.i(TAG, "** Debug: " + BuildConfig.DEBUG);
-        Log.i(TAG, "** DEBUG_LOG: " + FeaturesSet.DEBUG_LOG);
+        Log.i(TAG, "** Release code: " + BuildConfig.VERSION_CODE);
+        Log.i(TAG, "** BUILD_TYPE: " + BuildConfig.BUILD_TYPE);
+        Log.i(TAG, "** DEBUG: " + BuildConfig.DEBUG);
+        Log.i(TAG, "** TESTING_BUILD: " + BuildConfig.TESTING_BUILD);
         Log.i(TAG, "** CUTTING_EDGE: " + FeaturesSet.CUTTING_EDGE);
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(mContext);
         //setting some statistics
@@ -530,10 +531,17 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
                 mContext.getResources().getBoolean(R.bool.settings_default_always_use_fallback_user_dictionary));
         Log.d(TAG, "** mAlwaysUseFallBackUserDictionary: " + mAlwaysUseFallBackUserDictionary);
 
+        mAutomaticallySwitchToAppLayout = sp.getBoolean(mContext.getString(R.string.settings_key_persistent_layout_per_package_id),
+                mContext.getResources().getBoolean(R.bool.settings_default_persistent_layout_per_package_id));
+        Log.d(TAG, "** mAutomaticallySwitchToAppLayout: " + mAutomaticallySwitchToAppLayout);
+
         //Some preferences cause rebuild of the keyboard, hence changing the listeners list
         final LinkedList<OnSharedPreferenceChangeListener> disconnectedList = new LinkedList<>(mPreferencesChangedListeners);
         for (OnSharedPreferenceChangeListener listener : disconnectedList) {
-            listener.onSharedPreferenceChanged(sp, key);
+            //before notifying, we'll ensure that the listener is still interested in the callback
+            if (mPreferencesChangedListeners.contains(listener)) {
+                listener.onSharedPreferenceChanged(sp, key);
+            }
         }
     }
 
@@ -818,5 +826,10 @@ public class AskPrefsImpl implements AskPrefs, OnSharedPreferenceChangeListener 
     @Override
     public boolean alwaysUseFallBackUserDictionary() {
         return mAlwaysUseFallBackUserDictionary;
+    }
+
+    @Override
+    public boolean getPersistLayoutForPackageId() {
+        return mAutomaticallySwitchToAppLayout;
     }
 }

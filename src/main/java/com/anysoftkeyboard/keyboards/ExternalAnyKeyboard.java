@@ -29,7 +29,7 @@ import com.anysoftkeyboard.api.KeyCodes;
 import com.anysoftkeyboard.keyboardextensions.KeyboardExtension;
 import com.anysoftkeyboard.keyboardextensions.KeyboardExtensionFactory;
 import com.anysoftkeyboard.keyboards.AnyKeyboard.HardKeyboardTranslator;
-import com.anysoftkeyboard.utils.CompatUtils;
+import com.anysoftkeyboard.base.utils.CompatUtils;
 import com.anysoftkeyboard.utils.Log;
 import com.menny.android.anysoftkeyboard.BuildConfig;
 
@@ -61,7 +61,7 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
     private final Locale mLocale;
     private final HardKeyboardSequenceHandler mHardKeyboardTranslator;
     private final HashSet<Character> mAdditionalIsLetterExceptions;
-    private final HashSet<Character> mSentenceSeparators;
+    private final char[] mSentenceSeparators;
 
     private KeyboardExtension mExtensionLayout = null;
 
@@ -81,9 +81,8 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
         mLocale = CompatUtils.getLocaleForLanguageTag(mDefaultDictionary);
 
         if (qwertyTranslationId != AddOn.INVALID_RES_ID) {
-            Log.d(TAG, "Creating qwerty mapping:" + qwertyTranslationId);
-            mHardKeyboardTranslator = createPhysicalTranslatorFromResourceId(
-                    context, qwertyTranslationId);
+            Log.d(TAG, "Creating qwerty mapping: %d", qwertyTranslationId);
+            mHardKeyboardTranslator = createPhysicalTranslatorFromResourceId(context, qwertyTranslationId);
         } else {
             mHardKeyboardTranslator = null;
         }
@@ -95,10 +94,11 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
                 mAdditionalIsLetterExceptions.add(additionalIsLetterExceptions
                         .charAt(i));
         }
-        mSentenceSeparators = new HashSet<>(sentenceSeparators != null ? sentenceSeparators.length() : 0);
+
         if (sentenceSeparators != null) {
-            for (int i = 0; i < sentenceSeparators.length(); i++)
-                mSentenceSeparators.add(sentenceSeparators.charAt(i));
+            mSentenceSeparators = sentenceSeparators.toCharArray();
+        } else {
+            mSentenceSeparators = new char[0];
         }
 
         setExtensionLayout(KeyboardExtensionFactory
@@ -317,7 +317,7 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
     }
 
     @Override
-    public HashSet<Character> getSentenceSeparators() {
+    public char[] getSentenceSeparators() {
         return mSentenceSeparators;
     }
 
