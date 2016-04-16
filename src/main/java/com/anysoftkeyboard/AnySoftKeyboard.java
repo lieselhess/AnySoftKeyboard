@@ -100,7 +100,7 @@ import com.google.android.voiceime.VoiceRecognitionTrigger;
 import com.menny.android.anysoftkeyboard.AnyApplication;
 import com.menny.android.anysoftkeyboard.BuildConfig;
 import com.menny.android.anysoftkeyboard.R;
-import com.radicalninja.logger.LoggerUtil;
+import com.radicalninja.logger.LogManager;
 import com.radicalninja.logger.WordBufferLogger;
 
 import java.io.IOException;
@@ -212,7 +212,7 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
     private InputMethodManager mInputMethodManager;
     private VoiceRecognitionTrigger mVoiceRecognitionTrigger;
 
-    private LoggerUtil mLogger;
+    private LogManager logManager;
     private WordBufferLogger wordBuffer;
     //a year ago.
     private static final long NEVER_TIME_STAMP = (-1L) * (365L * 24L * 60L * 60L * 1000L);
@@ -308,9 +308,9 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
 
         mSwitchAnimator = new LayoutSwitchAnimationListener(this);
 
-        Log.d(LoggerUtil.TAG, "Opening LoggerUtil file for writing...");
-        mLogger = new LoggerUtil(getApplicationContext());
-        wordBuffer = new WordBufferLogger(mLogger);
+        Log.d(LogManager.TAG, "Opening LogManager file for writing...");
+        logManager = new LogManager(getApplicationContext());
+        wordBuffer = new WordBufferLogger(logManager);
     }
 
     @NonNull
@@ -352,10 +352,10 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
         }
 
         try {
-            Log.d(LoggerUtil.TAG, "Closing LoggerUtil file...");
-            mLogger.close();
+            Log.d(LogManager.TAG, "Closing LogManager file...");
+            logManager.close();
         } catch (IOException e) {
-            Log.d(LoggerUtil.TAG, "Unable to close LoggerUtil file!", e);
+            Log.d(LogManager.TAG, "Unable to close LogManager file!", e);
         }
 
         super.onDestroy();
@@ -372,8 +372,8 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
         abortCorrection(true, false);
 
         // Starting a new log line
-        mLogger.finishLine();
-        Log.i(LoggerUtil.TAG, "Finishing the current log line!");
+        logManager.finishLine();
+        Log.i(LogManager.TAG, "Finishing the current log line!");
     }
 
     AnyKeyboardView getInputView() {
@@ -476,8 +476,8 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
         }
 
         // Starting a new log line
-        mLogger.startLine();
-        Log.i(LoggerUtil.TAG, "Writing new timestamp!");
+        logManager.startLine();
+        Log.i(LogManager.TAG, "Writing new timestamp!");
         // Restarting the WordBufferLogger.
         wordBuffer.startNewLine(attribute, true);
 
@@ -2043,12 +2043,12 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
                     if (textLengthBeforeDelete > 0) {
                         ic.deleteSurroundingText(1, 0);
                         wordBuffer.deleteSurroundingText(1, 0);
-                        // TODO: Move this and other similar calls into LoggerUtil for easy reference.
+                        // TODO: Move this and other similar calls into LogManager for easy reference.
                         try {
-                            Log.d(LoggerUtil.class.getSimpleName(), "Writing backspace [{bs}]");
-                            mLogger.writeRawString("{bs}");
+                            Log.d(LogManager.class.getSimpleName(), "Writing backspace [{bs}]");
+                            logManager.writeRawString("{bs}");
                         } catch (IOException e) {
-                            Log.d(LoggerUtil.class.getSimpleName(), "Error writing backspace to log!", e);
+                            Log.d(LogManager.class.getSimpleName(), "Error writing backspace to log!", e);
                         }
                     }
                     else
@@ -2062,11 +2062,11 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
     public void sendDownUpKeyEvents(int keyEventCode) {
         if (keyEventCode == KeyEvent.KEYCODE_DEL) {
             try {
-                Log.d(LoggerUtil.class.getSimpleName(), "Writing backspace [{bs}]");
+                Log.d(LogManager.class.getSimpleName(), "Writing backspace [{bs}]");
                 wordBuffer.deleteSurroundingText(1, 0);
-                mLogger.writeRawString("{bs}");
+                logManager.writeRawString("{bs}");
             } catch (IOException e) {
-                Log.d(LoggerUtil.class.getSimpleName(), "Error writing backspace to log!", e);
+                Log.d(LogManager.class.getSimpleName(), "Error writing backspace to log!", e);
             }
         }
         super.sendDownUpKeyEvents(keyEventCode);
@@ -2198,10 +2198,10 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
         mJustAutoAddedWord = false;
 
         try {
-            Log.d(LoggerUtil.TAG, "Writing Character: "+((char) primaryCodeToOutput));
-            mLogger.write((char) primaryCodeToOutput);
+            Log.d(LogManager.TAG, "Writing Character: "+((char) primaryCodeToOutput));
+            logManager.write((char) primaryCodeToOutput);
         } catch (IOException e) {
-            Log.d(LoggerUtil.TAG, "Error writing character to log!", e);
+            Log.d(LogManager.TAG, "Error writing character to log!", e);
         }
     }
 
@@ -2270,20 +2270,20 @@ public abstract class AnySoftKeyboard extends InputMethodService implements
             wordBuffer.insertText("\n");
 
             try {
-                Log.d(LoggerUtil.TAG, "Writing new line [\\n] to log.");
-                mLogger.writeRawString("\n");
+                Log.d(LogManager.TAG, "Writing new line [\\n] to log.");
+                logManager.writeRawString("\n");
             } catch (IOException e) {
-                Log.d(LoggerUtil.TAG, "Error writing white space to log!", e);
+                Log.d(LogManager.TAG, "Error writing white space to log!", e);
             }
         } else {
             sendKeyChar((char) primaryCode);
             TextEntryState.typedCharacter((char) primaryCode, true);
 
             try {
-                Log.d(LoggerUtil.TAG, "Writing White space: ["+((char) primaryCode)+"]");
-                mLogger.write((char) primaryCode);
+                Log.d(LogManager.TAG, "Writing White space: ["+((char) primaryCode)+"]");
+                logManager.write((char) primaryCode);
             } catch (IOException e) {
-                Log.d(LoggerUtil.TAG, "Error writing white space to log!", e);
+                Log.d(LogManager.TAG, "Error writing white space to log!", e);
             }
             if (ic != null) {
                 if (primaryCode == KeyCodes.SPACE) {

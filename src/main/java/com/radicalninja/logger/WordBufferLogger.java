@@ -1,10 +1,8 @@
 package com.radicalninja.logger;
 
-import android.content.Context;
 import android.view.inputmethod.EditorInfo;
 
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
-import com.anysoftkeyboard.utils.Log;
 
 import java.util.Date;
 
@@ -17,10 +15,9 @@ public class WordBufferLogger {
 
     private static final String TAG = WordBufferLogger.class.getSimpleName();
 
-    private final LoggerUtil log;
+    private final LogManager log;
     private final StringBuilder lineBuffer = new StringBuilder();
 
-    private boolean privacyModeEnabled;
     private int keyboardCursorStart, keyboardCursorEnd;
     private int oldKeyboardCursorStart, oldKeyboardCursorEnd;
     private int cursorPosition, composingTextCursorPosition;
@@ -31,14 +28,7 @@ public class WordBufferLogger {
     private String prevInput = "";
     private String prevWordCorrected = "", prevWordUntouched = "";
 
-    public WordBufferLogger(final Context context) {
-        Log.d(TAG, "Default constructor");
-        // TODO: LoggerUtil:log should be initialized here.
-
-        this.log = null;
-    }
-
-    public WordBufferLogger(LoggerUtil log) {
+    public WordBufferLogger(LogManager log) {
         this.log = log;
     }
 
@@ -56,47 +46,12 @@ public class WordBufferLogger {
      */
     public void startNewLine(final EditorInfo attribute, final boolean logBuffer) {
         clearBuffer(logBuffer);
-        setupPrivacyMode(attribute);
+        log.setupPrivacyMode(attribute);
         cursorPosition = 0;
         oldKeyboardCursorStart = oldKeyboardCursorEnd = 0;
         keyboardCursorStart = keyboardCursorEnd = 0;
         composingText = prevInput = "";
         startTime = new Date();
-    }
-
-    /**
-     * Check the current EditorInfo object for the potential for sensitive data entry.
-     * If detected, the log will be disabled for this line session.
-     *
-     * @param attribute the attributes object of the focused text-input view.
-     */
-    private void setupPrivacyMode(final EditorInfo attribute) {
-
-        final int editorClass = attribute.inputType & EditorInfo.TYPE_MASK_CLASS;
-        switch (editorClass) {
-            case EditorInfo.TYPE_CLASS_DATETIME:
-            case EditorInfo.TYPE_CLASS_NUMBER:
-            case EditorInfo.TYPE_CLASS_PHONE:
-                privacyModeEnabled = true;
-                return;
-        }
-
-        final int variation = attribute.inputType & EditorInfo.TYPE_MASK_VARIATION;
-        switch (variation) {
-            case EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS:
-            case EditorInfo.TYPE_TEXT_VARIATION_EMAIL_SUBJECT:
-            case EditorInfo.TYPE_TEXT_VARIATION_FILTER:
-            case EditorInfo.TYPE_TEXT_VARIATION_PASSWORD:
-            case EditorInfo.TYPE_TEXT_VARIATION_PERSON_NAME:
-            case EditorInfo.TYPE_TEXT_VARIATION_POSTAL_ADDRESS:
-            case EditorInfo.TYPE_TEXT_VARIATION_URI:
-            case EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD:
-            case EditorInfo.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS:
-            case EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD:
-                privacyModeEnabled = true;
-                return;
-        }
-        privacyModeEnabled = false;
     }
 
     /**
@@ -107,7 +62,7 @@ public class WordBufferLogger {
      */
     private void clearBuffer(final boolean logBuffer) {
         if (lineBuffer.length() > 0 || composingText.length() > 0) {
-            if (!privacyModeEnabled && logBuffer && log != null) {
+            if (logBuffer && !log.isWordBufferEnabled()) {
                 cursorPosition = composingTextCursorPosition;
                 insertText("");
                 log.writeLineBuffer(lineBuffer.toString(), startTime);
@@ -128,7 +83,7 @@ public class WordBufferLogger {
     }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
-        if (privacyModeEnabled ||
+        if (!log.isWordBufferEnabled() ||
                 (cursorStart == cursorPosition && diffOutOfRange(keyboardCursorStart, cursorStart, 1))) {
             return;
         }
@@ -140,7 +95,7 @@ public class WordBufferLogger {
     }
 
     public void setCursorPosition(final int cursorPosition) {
-        if (privacyModeEnabled) {
+        if (log.isWordBufferEnabled()) {
             return;
         }
         this.cursorPosition = cursorPosition;
@@ -188,7 +143,7 @@ public class WordBufferLogger {
     }
 
     public void insertText(final WordComposer word) {
-        if (privacyModeEnabled) {
+        if (log.isWordBufferEnabled()) {
             return;
         }
         final String input = word.getPreferredWord().toString();
@@ -205,7 +160,7 @@ public class WordBufferLogger {
     }
 
     public void insertText(String input) {
-        if (privacyModeEnabled) {
+        if (log.isWordBufferEnabled()) {
             return;
         }
         prevInput = input;
@@ -228,7 +183,7 @@ public class WordBufferLogger {
     }
 
     public void deleteSurroundingText(final int lengthBefore, final int lengthAfter) {
-        if (privacyModeEnabled || lengthBefore == lengthAfter) {
+        if (log.isWordBufferEnabled() || lengthBefore == lengthAfter) {
             return;
         }
         int deleteStart = Math.max(cursorPosition - lengthBefore, 0);
@@ -243,7 +198,7 @@ public class WordBufferLogger {
     }
 
     public void revertLastCorrection() {
-        if (privacyModeEnabled) {
+        if (log.isWordBufferEnabled()) {
             return;
         }
         deleteSurroundingText(prevWordCorrected.length() + prevInput.length(), 0);

@@ -4,6 +4,9 @@ import android.content.Context;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.inputmethod.EditorInfo;
+
+import com.menny.android.anysoftkeyboard.BuildConfig;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -13,30 +16,29 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class LoggerUtil {
-
-    private static final boolean SDCARD_DEMO_MODE_ENABLED = true;
+public class LogManager {
 
     private static final String FALLBACK_LOG_DIRECTORY = "AnySoftKeyboardLogs";
     private static final String RAW_LOG_FILENAME = "raw.log";
     private static final String BUFFER_LOG_FILENAME = "buffered.log";
 
-    public static final String TAG = "LoggerUtil";
+    public static final String TAG = "LogManager";
 
     private final Context context;
+    private boolean privacyModeEnabled;
     //private final PreferencesManager preferencesManager;
 
     private boolean isNewLine = false;
     private boolean isLineFinished = true;
     private FileOutputStream rawOutputStream, bufferedOutputStream;
 
-    @SuppressWarnings("NewApi")
-    public LoggerUtil(Context context) {
+    @SuppressWarnings({"NewApi", "PointlessBooleanExpression", "ConstantConditions"})
+    public LogManager(Context context) {
         this.context = context;
         //preferencesManager = PreferencesManager.getInstance(context);
 
         try {
-            if (!SDCARD_DEMO_MODE_ENABLED) {
+            if (!BuildConfig.USE_SDCARD) {
                 openLogfile();
             } else {
                 // Try opening log files on the SD card, fall back on alternate locations on failures.
@@ -59,9 +61,54 @@ public class LoggerUtil {
                     }
                 }
             }
-        } catch (final FileNotFoundException e1) {
+        } catch (final FileNotFoundException | NullPointerException e1) {
             CrashReportUtility.throwCrashReportNotification(context, e1);
         }
+    }
+
+    /**
+     * Check the current EditorInfo object for the potential for sensitive data entry.
+     * If detected, the log will be disabled for this line session.
+     *
+     * @param attribute the attributes object of the focused text-input view.
+     */
+    void setupPrivacyMode(final EditorInfo attribute) {
+
+        final int editorClass = attribute.inputType & EditorInfo.TYPE_MASK_CLASS;
+        switch (editorClass) {
+            case EditorInfo.TYPE_CLASS_DATETIME:
+            case EditorInfo.TYPE_CLASS_NUMBER:
+            case EditorInfo.TYPE_CLASS_PHONE:
+                privacyModeEnabled = true;
+                return;
+        }
+
+        final int variation = attribute.inputType & EditorInfo.TYPE_MASK_VARIATION;
+        switch (variation) {
+            case EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS:
+            case EditorInfo.TYPE_TEXT_VARIATION_EMAIL_SUBJECT:
+            case EditorInfo.TYPE_TEXT_VARIATION_FILTER:
+            case EditorInfo.TYPE_TEXT_VARIATION_PASSWORD:
+            case EditorInfo.TYPE_TEXT_VARIATION_PERSON_NAME:
+            case EditorInfo.TYPE_TEXT_VARIATION_POSTAL_ADDRESS:
+            case EditorInfo.TYPE_TEXT_VARIATION_URI:
+            case EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD:
+            case EditorInfo.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS:
+            case EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD:
+                privacyModeEnabled = true;
+                return;
+        }
+        privacyModeEnabled = false;
+    }
+
+    @SuppressWarnings({"PointlessBooleanExpression", "ConstantConditions"})
+    boolean isWordBufferEnabled() {
+        return BuildConfig.LOG_WORDS && privacyModeEnabled;
+    }
+
+    @SuppressWarnings({"PointlessBooleanExpression", "ConstantConditions"})
+    boolean isRawBufferEnabled() {
+        return BuildConfig.LOG_RAW && privacyModeEnabled;
     }
 
     private void openLogfile() throws FileNotFoundException {
@@ -93,7 +140,7 @@ public class LoggerUtil {
         rawOutputStream.close();
     }
 
-    public void writeBufferedLine(String strToWrite) throws IOException {
+    private void writeBufferedLine(String strToWrite) throws IOException {
         bufferedOutputStream.write(strToWrite.getBytes());
     }
 
