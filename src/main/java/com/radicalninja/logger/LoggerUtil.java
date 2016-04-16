@@ -15,8 +15,6 @@ import java.util.Locale;
 
 public class LoggerUtil {
 
-    // TODO: make method that will generate a dated log filename every Nth hour.
-
     private static final boolean SDCARD_DEMO_MODE_ENABLED = true;
 
     private static final String FALLBACK_LOG_DIRECTORY = "AnySoftKeyboardLogs";
@@ -25,16 +23,17 @@ public class LoggerUtil {
 
     public static final String TAG = "LoggerUtil";
 
-    private boolean mNewLine = false;
-    private boolean mLineFinished = true;
-    private Context mContext;
-    private FileOutputStream mRawOutputStream, mBufferedOutputStream;
-    //private PreferencesManager mPrefs;
+    private final Context context;
+    //private final PreferencesManager preferencesManager;
+
+    private boolean isNewLine = false;
+    private boolean isLineFinished = true;
+    private FileOutputStream rawOutputStream, bufferedOutputStream;
 
     @SuppressWarnings("NewApi")
     public LoggerUtil(Context context) {
-        mContext = context;
-        //mPrefs = PreferencesManager.getInstance(context);
+        this.context = context;
+        //preferencesManager = PreferencesManager.getInstance(context);
 
         try {
             if (!SDCARD_DEMO_MODE_ENABLED) {
@@ -44,13 +43,13 @@ public class LoggerUtil {
                 try {
                     openLogFileExternalStorage();
                     CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
-                            mContext.getExternalFilesDir(null).getAbsolutePath());
+                            this.context.getExternalFilesDir(null).getAbsolutePath());
                 } catch (final FileNotFoundException e2) {
                     try {
                         openLogExternalStorageFallback();
                         CrashReportUtility.throwCrashReportNotification(context, e2);
                         CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
-                                "/sdcard/" + FALLBACK_LOG_DIRECTORY);
+                                Environment.getExternalStorageDirectory() + FALLBACK_LOG_DIRECTORY);
                     } catch (final FileNotFoundException e3) {
                         // Final exception defaults to private storage in /data/data.
                         openLogfile();
@@ -66,16 +65,16 @@ public class LoggerUtil {
     }
 
     private void openLogfile() throws FileNotFoundException {
-        mRawOutputStream = mContext.openFileOutput(RAW_LOG_FILENAME, Context.MODE_APPEND);
-        mBufferedOutputStream = mContext.openFileOutput(BUFFER_LOG_FILENAME, Context.MODE_APPEND);
+        rawOutputStream = context.openFileOutput(RAW_LOG_FILENAME, Context.MODE_APPEND);
+        bufferedOutputStream = context.openFileOutput(BUFFER_LOG_FILENAME, Context.MODE_APPEND);
     }
 
     @SuppressWarnings("NewApi")
     private void openLogFileExternalStorage() throws FileNotFoundException {
-        final File fileRaw = new File(mContext.getExternalFilesDir(null), RAW_LOG_FILENAME);
-        mRawOutputStream = new FileOutputStream(fileRaw, true);
-        final File fileBuffered = new File(mContext.getExternalFilesDir(null), BUFFER_LOG_FILENAME);
-        mBufferedOutputStream = new FileOutputStream(fileBuffered, true);
+        final File fileRaw = new File(context.getExternalFilesDir(null), RAW_LOG_FILENAME);
+        rawOutputStream = new FileOutputStream(fileRaw, true);
+        final File fileBuffered = new File(context.getExternalFilesDir(null), BUFFER_LOG_FILENAME);
+        bufferedOutputStream = new FileOutputStream(fileBuffered, true);
     }
 
     @SuppressWarnings("NewApi")
@@ -85,17 +84,17 @@ public class LoggerUtil {
         final File logDir = new File(logDirPath);
         logDir.mkdirs();
         final File fileRaw = new File(logDir, RAW_LOG_FILENAME);
-        mRawOutputStream = new FileOutputStream(fileRaw, true);
+        rawOutputStream = new FileOutputStream(fileRaw, true);
         final File fileBuffered = new File(logDir, BUFFER_LOG_FILENAME);
-        mBufferedOutputStream = new FileOutputStream(fileBuffered, true);
+        bufferedOutputStream = new FileOutputStream(fileBuffered, true);
     }
 
     public void close() throws IOException {
-        mRawOutputStream.close();
+        rawOutputStream.close();
     }
 
     public void writeBufferedLine(String strToWrite) throws IOException {
-        mBufferedOutputStream.write(strToWrite.getBytes());
+        bufferedOutputStream.write(strToWrite.getBytes());
     }
 
     public void write(char charToWrite) throws IOException {
@@ -103,24 +102,24 @@ public class LoggerUtil {
     }
 
     public void writeRawString(final String strToWrite) throws IOException {
-        if (mNewLine) {
+        if (isNewLine) {
             writeNewLine();
         }
 
-        mRawOutputStream.write(strToWrite.getBytes());
+        rawOutputStream.write(strToWrite.getBytes());
     }
 
     public void startLine() {
-        mNewLine = true;
+        isNewLine = true;
     }
 
     private void writeNewLine() {
-        mNewLine = false;   // reset the flag before we recursively call write(String);
-        if (!mLineFinished) {
+        isNewLine = false;   // reset the flag before we recursively call write(String);
+        if (!isLineFinished) {
             writeEndLine();
         }
-        mLineFinished = false;
-        String timestamp =
+        isLineFinished = false;
+        final String timestamp =
                 new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss] ", Locale.US).format(new Date());
         try {
             writeRawString(timestamp);
@@ -130,15 +129,15 @@ public class LoggerUtil {
     }
 
     public void finishLine() {
-        if (!mNewLine || !mLineFinished) {
+        if (!isNewLine || !isLineFinished) {
             writeEndLine();
-            mNewLine = true;
+            isNewLine = true;
         }
     }
 
     private void writeEndLine() {
-        mLineFinished = true;
-        mNewLine = false;
+        isLineFinished = true;
+        isNewLine = false;
         try {
             writeRawString("\n");
         } catch (IOException e) {
