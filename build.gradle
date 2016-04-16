@@ -136,6 +136,40 @@ android {
             buildConfigField("boolean", "TESTING_BUILD", "true")
         }
     }
+
+    productFlavors {
+        def String key_use_sdcard = "USE_SDCARD"
+        def String key_log_words = "LOG_WORDS"
+        def String key_log_raw = "LOG_RAW"
+
+        def String bool = "boolean"
+        def String enabled = "true"
+        def String disabled = "false"
+
+        logDisabled {
+            buildConfigField(bool, key_use_sdcard, disabled)
+            buildConfigField(bool, key_log_raw, disabled)
+            buildConfigField(bool, key_log_words, disabled)
+        }
+
+        logDemo {
+            buildConfigField(bool, key_use_sdcard, enabled)
+            buildConfigField(bool, key_log_raw, disabled)
+            buildConfigField(bool, key_log_words, enabled)
+        }
+
+        logProduction {
+            buildConfigField(bool, key_use_sdcard, disabled)
+            buildConfigField(bool, key_log_raw, disabled)
+            buildConfigField(bool, key_log_words, enabled)
+        }
+
+        logRawTest {
+            buildConfigField(bool, key_use_sdcard, enabled)
+            buildConfigField(bool, key_log_raw, enabled)
+            buildConfigField(bool, key_log_words, disabled)
+        }
+    }
 }
 
 task jacocoTestReport(type: JacocoReport/*make sure you are running testDebug prior to calling this task*/) {
