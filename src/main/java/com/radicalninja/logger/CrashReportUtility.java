@@ -22,14 +22,36 @@ import java.util.Date;
 
 public class CrashReportUtility {
 
+    // TODO: Move to its own file and build out methods
+//    static class EasyLog {
+//        static void d(final String message, final Throwable throwable) {
+//            Log.d()
+//        }
+//
+//        private static String getTagString(final Class clazz) {
+//            return clazz.getSimpleName();
+//        }
+//    }
+
+    // TODO: Add Log calls to this class, rename to more general name.
+
+    public static final String TAG_LOG_LOCATION = "Log file location";
+
     public static void displayLoggingAlertNotification(final Context context, final String text,
                                                        final String subText) {
+        if (BuildConfig.DEBUG_NOTIFICATIONS) {
+            return;
+        }
         sendCrashNotification(context, null, "Logging alert", "Keyboard Logger", text, subText,
                 R.id.notification_icon_app_alert);
     }
 
     // Methods lifted from com.menny.android.anysoftkeyboard.ChewbaccaUncaughtExceptionHandler.
     public static void throwCrashReportNotification(final Context context, final Throwable ex) {
+
+        if (BuildConfig.DEBUG_NOTIFICATIONS) {
+            return;
+        }
 
         String stackTrace = Log.getStackTrace(ex);
 

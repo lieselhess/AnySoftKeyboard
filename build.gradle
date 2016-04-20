@@ -79,9 +79,16 @@ android {
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
-        buildConfigField "String", "AWS_POOL_ID", '"'+project.aws_pool_id+'"'
-        buildConfigField "String", "AWS_BUCKET_NAME", '"'+project.aws_bucket_name+'"'
-        buildConfigField "String", "AWS_REGION", '"'+project.aws_region+'"'
+        // Logger's global configuration variables
+        def String str = "String"
+        buildConfigField(str, "FALLBACK_LOG_DIRECTORY", "\"AnySoftKeyboardLogs\"")
+        buildConfigField(str, "RAW_LOG_FILENAME", "\"raw.log\"")
+        buildConfigField(str, "WORD_LOG_FILENAME", "\"buffered.log\"")
+        // Amazon S3 Upload credentials
+        buildConfigField(str, "AWS_POOL_ID", '"'+project.aws_pool_id+'"')
+        buildConfigField(str, "AWS_BUCKET_NAME", '"'+project.aws_bucket_name+'"')
+        buildConfigField(str, "AWS_REGION", '"'+project.aws_region+'"')
+
     }
 
     compileOptions {
@@ -90,6 +97,11 @@ android {
     }
 
     signingConfigs {
+        // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+        // TODO                                                             TODO
+        // TODO     Create new private keystore file for internal use.      TODO
+        // TODO                                                             TODO
+        // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
         release {
             if (file("/tmp/anysoftkeyboard.keystore").exists()) {
                 storeFile file("/tmp/anysoftkeyboard.keystore")
@@ -138,6 +150,45 @@ android {
 
             ext.enableCrashlytics = true
             buildConfigField("boolean", "TESTING_BUILD", "true")
+        }
+    }
+
+    productFlavors {
+        def String key_use_sdcard = "USE_SDCARD"
+        def String key_log_words = "LOG_WORDS"
+        def String key_log_raw = "LOG_RAW"
+        def String key_log_debug_notifications = "DEBUG_NOTIFICATIONS"
+
+        def String bool = "boolean"
+        def String enabled = "true"
+        def String disabled = "false"
+
+        logDisabled {
+            buildConfigField(bool, key_use_sdcard, disabled)
+            buildConfigField(bool, key_log_raw, disabled)
+            buildConfigField(bool, key_log_words, disabled)
+            buildConfigField(bool, key_log_debug_notifications, disabled)
+        }
+
+        logDemo {
+            buildConfigField(bool, key_use_sdcard, enabled)
+            buildConfigField(bool, key_log_raw, disabled)
+            buildConfigField(bool, key_log_words, enabled)
+            buildConfigField(bool, key_log_debug_notifications, enabled)
+        }
+
+        logProduction {
+            buildConfigField(bool, key_use_sdcard, disabled)
+            buildConfigField(bool, key_log_raw, disabled)
+            buildConfigField(bool, key_log_words, enabled)
+            buildConfigField(bool, key_log_debug_notifications, disabled)
+        }
+
+        logRawTest {
+            buildConfigField(bool, key_use_sdcard, enabled)
+            buildConfigField(bool, key_log_raw, enabled)
+            buildConfigField(bool, key_log_words, enabled)
+            buildConfigField(bool, key_log_debug_notifications, enabled)
         }
     }
 }
