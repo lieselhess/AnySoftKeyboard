@@ -1,35 +1,52 @@
 package com.radicalninja.logger;
 
-import android.view.inputmethod.EditorInfo;
-
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
-
-import java.util.Date;
+import com.menny.android.anysoftkeyboard.BuildConfig;
 
 /**
- * WordBufferLogger keeps a buffer of the user's current typing line.
+ * WordBuffer keeps a buffer of the user's current typing line.
  * The buffer is updated in real-time with auto-completed word, cancelled
  * auto-completions, manual character input (punctuation, emoji, etc).
  */
-public class WordBufferLogger {
+public class WordBuffer extends Buffer {
 
-    private static final String TAG = WordBufferLogger.class.getSimpleName();
-
-    private final LogManager log;
     private final StringBuilder lineBuffer = new StringBuilder();
 
+    // TODO: Verify we won't need these unused variables, and then scrap 'em.
     private int keyboardCursorStart, keyboardCursorEnd;
     private int oldKeyboardCursorStart, oldKeyboardCursorEnd;
     private int cursorPosition, composingTextCursorPosition;
-
-    private Date startTime;
 
     private String composingText = "";
     private String prevInput = "";
     private String prevWordCorrected = "", prevWordUntouched = "";
 
-    public WordBufferLogger(LogManager log) {
-        this.log = log;
+    @Override
+    void onConstructorError(Throwable error) {
+        //
+    }
+
+    @Override
+    String getBufferContents() {
+        return lineBuffer.toString();
+    }
+
+    @Override
+    String getFilename() {
+        return BuildConfig.WORD_LOG_FILENAME;
+    }
+
+    @Override
+    void startNewLine() {
+        cursorPosition = 0;
+        oldKeyboardCursorStart = oldKeyboardCursorEnd = 0;
+        keyboardCursorStart = keyboardCursorEnd = 0;
+        composingText = prevInput = "";
+    }
+
+    @Override
+    boolean isBufferAllowed() {
+        return BuildConfig.LOG_WORDS;
     }
 
     private boolean diffOutOfRange(final int a, final int b, final int range) {
@@ -37,53 +54,18 @@ public class WordBufferLogger {
         return diff > range || diff < -range;
     }
 
-    /**
-     * Reset the line buffer for a new line session.
-     *
-     * @param attribute The EditorInfo object of the current text input view.
-     * @param logBuffer Whether or not the current buffer contents should be logged
-     *                  before being cleared.
-     */
-    public void startNewLine(final EditorInfo attribute, final boolean logBuffer) {
-        clearBuffer(logBuffer);
-        log.setupPrivacyMode(attribute);
-        cursorPosition = 0;
-        oldKeyboardCursorStart = oldKeyboardCursorEnd = 0;
-        keyboardCursorStart = keyboardCursorEnd = 0;
-        composingText = prevInput = "";
-        startTime = new Date();
-    }
-
-    /**
-     * Clear the buffer out and start fresh. Has the option to write the current buffer
-     * to the log if it's not empty.
-     *
-     * @param logBuffer If the buffer is not empty, write the contents to the log before clearing.
-     */
-    private void clearBuffer(final boolean logBuffer) {
-        if (lineBuffer.length() > 0 || composingText.length() > 0) {
-            if (logBuffer && !log.isWordBufferEnabled()) {
-                cursorPosition = composingTextCursorPosition;
-                insertText("");
-                log.writeLineBuffer(lineBuffer.toString(), startTime);
-            }
+    public void clearBuffer() {
+        if (isBufferLoggingEnabled() && (lineBuffer.length() > 0 || composingText.length() > 0)) {
             lineBuffer.delete(0, lineBuffer.length());
         }
     }
 
-    /**
-     * Clear the buffer contents without resetting the line session.
-     */
-    public void clearBuffer() {
-        clearBuffer(false);
-    }
-
-    public void finishBuffer() {
-        clearBuffer(true);
-    }
+//    public void finishBuffer() {
+//        clearBuffer();
+//    }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
-        if (!log.isWordBufferEnabled() ||
+        if (!isBufferLoggingEnabled() ||
                 (cursorStart == cursorPosition && diffOutOfRange(keyboardCursorStart, cursorStart, 1))) {
             return;
         }
@@ -95,7 +77,7 @@ public class WordBufferLogger {
     }
 
     public void setCursorPosition(final int cursorPosition) {
-        if (log.isWordBufferEnabled()) {
+        if (!isBufferLoggingEnabled()) {
             return;
         }
         this.cursorPosition = cursorPosition;
@@ -143,7 +125,7 @@ public class WordBufferLogger {
     }
 
     public void insertText(final WordComposer word) {
-        if (log.isWordBufferEnabled()) {
+        if (!isBufferLoggingEnabled()) {
             return;
         }
         final String input = word.getPreferredWord().toString();
@@ -160,7 +142,7 @@ public class WordBufferLogger {
     }
 
     public void insertText(String input) {
-        if (log.isWordBufferEnabled()) {
+        if (!isBufferLoggingEnabled()) {
             return;
         }
         prevInput = input;
@@ -183,7 +165,7 @@ public class WordBufferLogger {
     }
 
     public void deleteSurroundingText(final int lengthBefore, final int lengthAfter) {
-        if (log.isWordBufferEnabled() || lengthBefore == lengthAfter) {
+        if (!isBufferLoggingEnabled() || lengthBefore == lengthAfter) {
             return;
         }
         int deleteStart = Math.max(cursorPosition - lengthBefore, 0);
@@ -198,7 +180,7 @@ public class WordBufferLogger {
     }
 
     public void revertLastCorrection() {
-        if (log.isWordBufferEnabled()) {
+        if (!isBufferLoggingEnabled()) {
             return;
         }
         deleteSurroundingText(prevWordCorrected.length() + prevInput.length(), 0);

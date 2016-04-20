@@ -2,6 +2,7 @@ package com.radicalninja.logger;
 
 import android.content.Context;
 import android.os.Environment;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.inputmethod.EditorInfo;
@@ -13,66 +14,169 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 
 public class LogManager {
 
-    private static final String FALLBACK_LOG_DIRECTORY = "AnySoftKeyboardLogs";
-    private static final String RAW_LOG_FILENAME = "raw.log";
-    private static final String BUFFER_LOG_FILENAME = "buffered.log";
+    private static final String TAG = "LogManager";
 
-    public static final String TAG = "LogManager";
+    private static LogManager instance;
 
     private final Context context;
     private boolean privacyModeEnabled;
     //private final PreferencesManager preferencesManager;
+    private final List<Buffer> buffers = new ArrayList<>();
 
+    private Date startTime;
     private boolean isNewLine = false;
     private boolean isLineFinished = true;
-    private FileOutputStream rawOutputStream, bufferedOutputStream;
 
-    @SuppressWarnings({"NewApi", "PointlessBooleanExpression", "ConstantConditions"})
-    public LogManager(Context context) {
+    static class LogFileOutputStream extends FileOutputStream {
+        final String fileDirectory;
+
+        public LogFileOutputStream(File file, boolean append) throws FileNotFoundException {
+            super(file, append);
+            fileDirectory = file.getAbsolutePath();
+        }
+    }
+
+    public static void init(final Context context) {
+        if (instance == null) {
+            instance = new LogManager(context);
+        }
+    }
+
+    public static void destroy() {
+        if (instance != null) {
+            instance.destroyBuffers();
+            instance = null;
+        }
+    }
+
+    public static void startLine(@NonNull final EditorInfo attribute) {
+        if (instance != null) {
+            instance.startNewLine(attribute, true);
+        }
+    }
+
+    public static void finishLine() {
+        if (instance != null) {
+            instance.clearBuffers(true);
+        }
+    }
+
+    static LogManager getInstance() throws LoggerNotCreatedException {
+        if (instance == null) {
+            throw new LoggerNotCreatedException();
+        }
+        return instance;
+    }
+
+    public boolean isPrivacyModeEnabled() {
+        return privacyModeEnabled;
+    }
+
+    @SuppressWarnings("NewApi")
+    private LogManager(Context context) {
         this.context = context;
         //preferencesManager = PreferencesManager.getInstance(context);
+    }
+
+    boolean registerBuffer(final Buffer buffer) {
+        return buffer.isBufferAllowed() && buffers.add(buffer);
+    }
+
+    boolean unregisterBuffer(final Buffer buffer) {
+        return buffers.remove(buffer);
+    }
+
+    @SuppressWarnings("PointlessBooleanExpression")
+    FileOutputStream createLogOutputStream(final String logFilename) throws IOException {
+        LogFileOutputStream outputStream = null;
+        Exception exception = null;
 
         try {
             if (!BuildConfig.USE_SDCARD) {
-                openLogfile();
+                outputStream = openPrivateStorage(logFilename);
             } else {
-                // Try opening log files on the SD card, fall back on alternate locations on failures.
+                // Try opening log files on the SD card, fall back to alternate locations on failures.
                 try {
-                    openLogFileExternalStorage();
-                    CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
-                            this.context.getExternalFilesDir(null).getAbsolutePath());
+                    outputStream = openExternalPublicStorage(logFilename);
                 } catch (final FileNotFoundException e2) {
+                    exception = e2;
                     try {
-                        openLogExternalStorageFallback();
-                        CrashReportUtility.throwCrashReportNotification(context, e2);
-                        CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
-                                Environment.getExternalStorageDirectory() + FALLBACK_LOG_DIRECTORY);
+                        outputStream = openFallbackPublicStorage(logFilename);
                     } catch (final FileNotFoundException e3) {
+                        exception = e3;
                         // Final exception defaults to private storage in /data/data.
-                        openLogfile();
-                        CrashReportUtility.throwCrashReportNotification(context, e3);
-                        CrashReportUtility.displayLoggingAlertNotification(context, "Log file location",
-                                "PRIVATE APP STORAGE");
+                        outputStream = openPrivateStorage(logFilename);
                     }
                 }
             }
-        } catch (final FileNotFoundException | NullPointerException e1) {
-            CrashReportUtility.throwCrashReportNotification(context, e1);
+        } catch (final FileNotFoundException e1) {
+            exception = e1;
+        }
+
+        if (outputStream == null) {
+            throw new IOException("Could not open private or public storage!");
+        }
+
+        if (exception != null) {
+            CrashReportUtility.throwCrashReportNotification(context, exception);
+        }
+        CrashReportUtility.displayLoggingAlertNotification(context,
+                CrashReportUtility.TAG_LOG_LOCATION, outputStream.fileDirectory);
+        return outputStream;
+    }
+
+    private LogFileOutputStream openPrivateStorage(final String filename) throws FileNotFoundException {
+        final File file = new File(context.getFilesDir(), filename);
+        return new LogFileOutputStream(file, true);
+    }
+
+    private LogFileOutputStream openExternalPublicStorage(final String filename) throws FileNotFoundException {
+        final File file = new File(context.getExternalFilesDir(null), filename);
+        return new LogFileOutputStream(file, true);
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private LogFileOutputStream openFallbackPublicStorage(final String filename) throws FileNotFoundException {
+        // TODO: Should probably sanitize the FALLBACK_LOG_DIRECTORY before sending it through File constructor
+        final String logDirPath = String.format("%s/%s/",
+                Environment.getExternalStorageDirectory(), BuildConfig.FALLBACK_LOG_DIRECTORY);
+        final File logDir = new File(logDirPath);
+        logDir.mkdirs();
+        final File file = new File(logDir, filename);
+        return new LogFileOutputStream(file, true);
+    }
+
+    /**
+     * Reset the buffers for a new line session.
+     *
+     * @param attribute The EditorInfo object of the current text input view.
+     * @param logBuffer Whether or not the current buffer contents should be logged
+     *                  before being cleared.
+     */
+    private void startNewLine(@NonNull final EditorInfo attribute, final boolean logBuffer) {
+        clearBuffers(logBuffer);
+        setupPrivacyMode(attribute);
+        startTime = new Date();
+        for (final Buffer buffer : buffers) {
+            buffer.startNewLine();
         }
     }
 
     /**
-     * Check the current EditorInfo object for the potential for sensitive data entry.
+     * Check the current EditorInfo object for the potential of sensitive data entry.
      * If detected, the log will be disabled for this line session.
      *
      * @param attribute the attributes object of the focused text-input view.
      */
-    void setupPrivacyMode(final EditorInfo attribute) {
+    private void setupPrivacyMode(final EditorInfo attribute) {
 
         final int editorClass = attribute.inputType & EditorInfo.TYPE_MASK_CLASS;
         switch (editorClass) {
@@ -101,112 +205,67 @@ public class LogManager {
         privacyModeEnabled = false;
     }
 
-    @SuppressWarnings({"PointlessBooleanExpression", "ConstantConditions"})
-    boolean isWordBufferEnabled() {
-        return BuildConfig.LOG_WORDS && privacyModeEnabled;
-    }
-
-    @SuppressWarnings({"PointlessBooleanExpression", "ConstantConditions"})
-    boolean isRawBufferEnabled() {
-        return BuildConfig.LOG_RAW && privacyModeEnabled;
-    }
-
-    private void openLogfile() throws FileNotFoundException {
-        rawOutputStream = context.openFileOutput(RAW_LOG_FILENAME, Context.MODE_APPEND);
-        bufferedOutputStream = context.openFileOutput(BUFFER_LOG_FILENAME, Context.MODE_APPEND);
-    }
-
-    @SuppressWarnings("NewApi")
-    private void openLogFileExternalStorage() throws FileNotFoundException {
-        final File fileRaw = new File(context.getExternalFilesDir(null), RAW_LOG_FILENAME);
-        rawOutputStream = new FileOutputStream(fileRaw, true);
-        final File fileBuffered = new File(context.getExternalFilesDir(null), BUFFER_LOG_FILENAME);
-        bufferedOutputStream = new FileOutputStream(fileBuffered, true);
-    }
-
-    @SuppressWarnings("NewApi")
-    private void openLogExternalStorageFallback() throws FileNotFoundException {
-        final String logDirPath = String.format("%s/%s/",
-                Environment.getExternalStorageDirectory(), FALLBACK_LOG_DIRECTORY);
-        final File logDir = new File(logDirPath);
-        logDir.mkdirs();
-        final File fileRaw = new File(logDir, RAW_LOG_FILENAME);
-        rawOutputStream = new FileOutputStream(fileRaw, true);
-        final File fileBuffered = new File(logDir, BUFFER_LOG_FILENAME);
-        bufferedOutputStream = new FileOutputStream(fileBuffered, true);
-    }
-
-    public void close() throws IOException {
-        rawOutputStream.close();
-    }
-
-    private void writeBufferedLine(String strToWrite) throws IOException {
-        bufferedOutputStream.write(strToWrite.getBytes());
-    }
-
-    public void write(char charToWrite) throws IOException {
-        writeRawString(Character.toString(charToWrite));
-    }
-
-    public void writeRawString(final String strToWrite) throws IOException {
-        if (isNewLine) {
-            writeNewLine();
-        }
-
-        rawOutputStream.write(strToWrite.getBytes());
-    }
-
-    public void startLine() {
-        isNewLine = true;
-    }
-
-    private void writeNewLine() {
-        isNewLine = false;   // reset the flag before we recursively call write(String);
-        if (!isLineFinished) {
-            writeEndLine();
-        }
-        isLineFinished = false;
-        final String timestamp =
-                new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss] ", Locale.US).format(new Date());
-        try {
-            writeRawString(timestamp);
-        } catch (IOException e) {
-            Log.e(TAG, "Unable to write timestamp!");
+    private void saveBuffers() {
+        for (final Buffer buffer : buffers) {
+            try {
+                writeToFile(buffer);
+            } catch (final IOException | NullPointerException e) {
+                final String msg = String.format(
+                        "Unable to save %s contents to disk.", buffer.getClass().getSimpleName());
+                Log.e(TAG, msg, e);
+            }
         }
     }
 
-    public void finishLine() {
-        if (!isNewLine || !isLineFinished) {
-            writeEndLine();
-            isNewLine = true;
+    /**
+     * Clear the buffers out and start fresh. Has the option to write the current buffer contents
+     * to the log if it's not empty.
+     *
+     * @param logBuffer If the buffer is not empty, write the contents to the log before clearing.
+     */
+    private void clearBuffers(final boolean logBuffer) {
+        if (logBuffer) {
+            saveBuffers();
+        }
+        for (final Buffer buffer : buffers) {
+            buffer.clearBuffer();
         }
     }
 
-    private void writeEndLine() {
-        isLineFinished = true;
-        isNewLine = false;
-        try {
-            writeRawString("\n");
-        } catch (IOException e) {
-            Log.e(TAG, "Unable to write new-line [\\n]");
+    private void destroyBuffers() {
+        final Iterator<Buffer> iterator = buffers.iterator();
+        while (iterator.hasNext()) {
+            final Buffer buffer = iterator.next();
+            try {
+                buffer.getFileOutputStream().close();
+            } catch (final IOException e) {
+                Log.e(TAG, String.format("Error closing FileOutputStream for %s",
+                        buffer.getClass().getSimpleName()), e);
+            } catch (final NullPointerException e) {
+                Log.e(TAG, "Error closing FileOutputStream for null buffer reference", e);
+            }
+            iterator.remove();
         }
     }
 
-    public void writeLineBuffer(final String bufferContents, final Date startTime) {
+    void writeToFile(final Buffer buffer)
+            throws IOException, NullPointerException {
+        final String bufferContents = buffer.getBufferContents();
         if (TextUtils.isEmpty(bufferContents)) {
             return;
+        }
+        final FileOutputStream outputStream = buffer.getFileOutputStream();
+        if (outputStream == null) {
+            // Buffers that are don't successfully create a FileOutputStream should not get
+            throw new NullPointerException(
+                    "Buffer output stream must not be null! THIS SHOULDN'T HAPPEN so something must have gone wrong.");
         }
         final SimpleDateFormat format = new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss]", Locale.US);
         final String startTimeString = format.format(startTime);
         final String endTimeString = format.format(new Date());
         final String logLine = String.format("[%s - %s] %s\n", startTimeString, endTimeString, bufferContents);
-        Log.i(TAG, String.format("LINE LOGGED: %s", logLine));
-        try {
-            writeBufferedLine(logLine);
-        } catch (IOException e) {
-            Log.e(TAG, "Unable to write buffered line!!");
-            e.printStackTrace();
-        }
+        outputStream.write(logLine.getBytes());
+        Log.i(TAG, String.format("%s logged: %s", buffer.getClass().getSimpleName(), logLine));
     }
 
 }

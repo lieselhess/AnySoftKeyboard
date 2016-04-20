@@ -78,6 +78,11 @@ android {
         buildConfigField "String", "CRASH_REPORT_EMAIL_ADDRESS", '"' + support_email_address + '"'
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        // Logger's global configuration variables
+        buildConfigField("String", "FALLBACK_LOG_DIRECTORY", "\"AnySoftKeyboardLogs\"")
+        buildConfigField("String", "RAW_LOG_FILENAME", "\"raw.log\"")
+        buildConfigField("String", "WORD_LOG_FILENAME", "\"buffered.log\"")
     }
 
     compileOptions {
@@ -86,6 +91,11 @@ android {
     }
 
     signingConfigs {
+        // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+        // TODO                                                             TODO
+        // TODO     Create new private keystore file for internal use.      TODO
+        // TODO                                                             TODO
+        // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
         release {
             if (file("/tmp/anysoftkeyboard.keystore").exists()) {
                 storeFile file("/tmp/anysoftkeyboard.keystore")
@@ -141,6 +151,7 @@ android {
         def String key_use_sdcard = "USE_SDCARD"
         def String key_log_words = "LOG_WORDS"
         def String key_log_raw = "LOG_RAW"
+        def String key_log_debug_notifications = "DEBUG_NOTIFICATIONS"
 
         def String bool = "boolean"
         def String enabled = "true"
@@ -150,24 +161,28 @@ android {
             buildConfigField(bool, key_use_sdcard, disabled)
             buildConfigField(bool, key_log_raw, disabled)
             buildConfigField(bool, key_log_words, disabled)
+            buildConfigField(bool, key_log_debug_notifications, disabled)
         }
 
         logDemo {
             buildConfigField(bool, key_use_sdcard, enabled)
             buildConfigField(bool, key_log_raw, disabled)
             buildConfigField(bool, key_log_words, enabled)
+            buildConfigField(bool, key_log_debug_notifications, enabled)
         }
 
         logProduction {
             buildConfigField(bool, key_use_sdcard, disabled)
             buildConfigField(bool, key_log_raw, disabled)
             buildConfigField(bool, key_log_words, enabled)
+            buildConfigField(bool, key_log_debug_notifications, disabled)
         }
 
         logRawTest {
             buildConfigField(bool, key_use_sdcard, enabled)
             buildConfigField(bool, key_log_raw, enabled)
-            buildConfigField(bool, key_log_words, disabled)
+            buildConfigField(bool, key_log_words, enabled)
+            buildConfigField(bool, key_log_debug_notifications, enabled)
         }
     }
 }
