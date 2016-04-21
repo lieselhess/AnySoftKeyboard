@@ -34,6 +34,10 @@ public abstract class Buffer {
         return isBufferAllowed() && !LogManager.getInstance().isPrivacyModeEnabled();
     }
 
+    final String getDebugTag() {
+        return TAG;
+    }
+
     abstract void clearBuffer();
 
     //abstract void finishBuffer();

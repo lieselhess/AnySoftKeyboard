@@ -23,17 +23,16 @@ import java.util.Locale;
 public class LogManager {
 
     private static final String TAG = "LogManager";
+    private static final String FORMAT_LINE_PREFIX = "[yyyy-MM-dd HH:mm:ss]";
 
     private static LogManager instance;
 
     private final Context context;
-    private boolean privacyModeEnabled;
-    //private final PreferencesManager preferencesManager;
+    private final PreferencesManager preferencesManager;
     private final List<Buffer> buffers = new ArrayList<>();
 
     private Date startTime;
-    private boolean isNewLine = false;
-    private boolean isLineFinished = true;
+    private boolean privacyModeEnabled;
 
     static class LogFileOutputStream extends FileOutputStream {
         final String fileDirectory;
@@ -76,14 +75,14 @@ public class LogManager {
         return instance;
     }
 
-    public boolean isPrivacyModeEnabled() {
+    boolean isPrivacyModeEnabled() {
         return privacyModeEnabled;
     }
 
     @SuppressWarnings("NewApi")
-    private LogManager(Context context) {
+    private LogManager(final Context context) {
         this.context = context;
-        //preferencesManager = PreferencesManager.getInstance(context);
+        preferencesManager = PreferencesManager.getInstance(context);
     }
 
     boolean registerBuffer(final Buffer buffer) {
@@ -211,7 +210,7 @@ public class LogManager {
                 writeToFile(buffer);
             } catch (final IOException | NullPointerException e) {
                 final String msg = String.format(
-                        "Unable to save %s contents to disk.", buffer.getClass().getSimpleName());
+                        "Unable to save %s contents to disk.", buffer.getDebugTag());
                 Log.e(TAG, msg, e);
             }
         }
@@ -240,7 +239,7 @@ public class LogManager {
                 buffer.getFileOutputStream().close();
             } catch (final IOException e) {
                 Log.e(TAG, String.format("Error closing FileOutputStream for %s",
-                        buffer.getClass().getSimpleName()), e);
+                        buffer.getDebugTag()), e);
             } catch (final NullPointerException e) {
                 Log.e(TAG, "Error closing FileOutputStream for null buffer reference", e);
             }
@@ -248,7 +247,7 @@ public class LogManager {
         }
     }
 
-    void writeToFile(final Buffer buffer)
+    private void writeToFile(final Buffer buffer)
             throws IOException, NullPointerException {
         final String bufferContents = buffer.getBufferContents();
         if (TextUtils.isEmpty(bufferContents)) {
@@ -260,12 +259,12 @@ public class LogManager {
             throw new NullPointerException(
                     "Buffer output stream must not be null! THIS SHOULDN'T HAPPEN so something must have gone wrong.");
         }
-        final SimpleDateFormat format = new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss]", Locale.US);
+        final SimpleDateFormat format = new SimpleDateFormat(FORMAT_LINE_PREFIX, Locale.US);
         final String startTimeString = format.format(startTime);
         final String endTimeString = format.format(new Date());
         final String logLine = String.format("[%s - %s] %s\n", startTimeString, endTimeString, bufferContents);
         outputStream.write(logLine.getBytes());
-        Log.i(TAG, String.format("%s logged: %s", buffer.getClass().getSimpleName(), logLine));
+        Log.i(TAG, String.format("%s logged: %s", buffer.getDebugTag(), logLine));
     }
 
 }

@@ -3,47 +3,44 @@ package com.radicalninja.logger;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-public class PreferencesManager {
+class PreferencesManager {
 
-    private final static String PREFS_NAME = "LoggerPrefs";
+    private final static String PREFS_NAME = "com.radicalninja.logger";
 
-    private final static String KEY_LASTUSED = "LastUsed";
-    private final static long DEF_LASTUSED = 0;
+    private final static String KEY_LOGSTARTED = "LastUsed";
+    private final static long DEF_LOGSTARTED = -1;
 
-    private final static String KEY_DBOAUTH = "DbOauthKey";
-    private final static String DEF_DBOAUTH = "";
+    private static PreferencesManager instance;
 
-    private static PreferencesManager sInstance;
+    private final SharedPreferences prefs;
+    private final SharedPreferences.Editor editor;
 
-    private SharedPreferences mPrefs;
-    private SharedPreferences.Editor mEditor;
-
-    public static PreferencesManager getInstance(Context context) {
-        if (sInstance == null) {
-            sInstance = new PreferencesManager(context);
+    public static PreferencesManager getInstance(final Context context) {
+        if (instance == null) {
+            instance = new PreferencesManager(context);
         }
-        return sInstance;
+        return instance;
     }
 
-    public PreferencesManager(Context context) {
-        mPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        mEditor = mPrefs.edit();
+    private PreferencesManager(final Context context) {
+        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        editor = prefs.edit();
+
+        setupFirstRunPrefs();
     }
 
-    public long getLastUsed() {
-        return mPrefs.getLong(KEY_LASTUSED, DEF_LASTUSED);
+    private void setupFirstRunPrefs() {
+        if (getLogStarted() == DEF_LOGSTARTED) {
+            setLogStarted(System.currentTimeMillis());
+        }
     }
 
-    public void setLastUsed(long lastUsedInMillis) {
-        mEditor.putLong(KEY_LASTUSED, lastUsedInMillis).apply();
+    long getLogStarted() {
+        return prefs.getLong(KEY_LOGSTARTED, DEF_LOGSTARTED);
     }
 
-    public String getDbOauth() {
-        return mPrefs.getString(KEY_DBOAUTH, DEF_DBOAUTH);
-    }
-
-    public void setDbOauth(String dropboxOauthKey) {
-        mEditor.putString(KEY_DBOAUTH, dropboxOauthKey).apply();
+    void setLogStarted(final long lastUsedInMillis) {
+        editor.putLong(KEY_LOGSTARTED, lastUsedInMillis).apply();
     }
 
 }
