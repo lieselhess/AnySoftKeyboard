@@ -33,6 +33,7 @@ public class LogManager {
 
     private Date startTime;
     private boolean privacyModeEnabled;
+    private String logDirectory;
 
     static class LogFileOutputStream extends FileOutputStream {
         final String fileDirectory;
@@ -133,24 +134,37 @@ public class LogManager {
     }
 
     private LogFileOutputStream openPrivateStorage(final String filename) throws FileNotFoundException {
-        final File file = new File(context.getFilesDir(), filename);
+        final File logDir = context.getFilesDir();
+        logDirectory = logDir.getAbsolutePath();
+        final File file = new File(logDir, filename);
         return new LogFileOutputStream(file, true);
     }
 
     private LogFileOutputStream openExternalPublicStorage(final String filename) throws FileNotFoundException {
-        final File file = new File(context.getExternalFilesDir(null), filename);
+        final File logDir = context.getExternalFilesDir(null);
+        if (logDir == null) {
+            throw new FileNotFoundException("context.getExternalFilesDir() returned null.");
+        }
+        logDirectory = logDir.getAbsolutePath();
+        final File file = new File(logDir, filename);
         return new LogFileOutputStream(file, true);
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private LogFileOutputStream openFallbackPublicStorage(final String filename) throws FileNotFoundException {
-        // TODO: Should probably sanitize the FALLBACK_LOG_DIRECTORY before sending it through File constructor
-        final String logDirPath = String.format("%s/%s/",
-                Environment.getExternalStorageDirectory(), BuildConfig.FALLBACK_LOG_DIRECTORY);
-        final File logDir = new File(logDirPath);
+
+        logDirectory = getFallbackPublicStoragePath();
+        final File logDir = new File(logDirectory);
         logDir.mkdirs();
         final File file = new File(logDir, filename);
         return new LogFileOutputStream(file, true);
+    }
+
+    private String getFallbackPublicStoragePath() {
+        // Strip any extraneous backslash prefix/suffix
+        final String cleanedPath = StringUtil.rlTrim(BuildConfig.FALLBACK_LOG_DIRECTORY.trim(), '/');
+        return String.format("%s/%s/",
+                Environment.getExternalStorageDirectory(), cleanedPath);
     }
 
     /**

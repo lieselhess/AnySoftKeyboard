@@ -40,8 +40,6 @@ public abstract class Buffer {
 
     abstract void clearBuffer();
 
-    //abstract void finishBuffer();
-
     abstract String getBufferContents();
 
     abstract String getFilename();
