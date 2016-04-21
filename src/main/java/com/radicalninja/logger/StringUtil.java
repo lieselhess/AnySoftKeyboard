@@ -21,8 +21,8 @@ class StringUtil {
         return string.substring(start, end);
     }
 
-    public static <T extends Object> boolean arrayContains(final T[] array, final T object) {
-        for (final T item : array) {
+    public static boolean arrayContains(final Object[] array, final Object object) {
+        for (final Object item : array) {
             if (item.equals(object)) {
                 return true;
             }
