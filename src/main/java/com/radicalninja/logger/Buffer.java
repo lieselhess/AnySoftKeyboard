@@ -2,20 +2,18 @@ package com.radicalninja.logger;
 
 import android.util.Log;
 
-import java.io.FileOutputStream;
-
 public abstract class Buffer {
 
     protected final String TAG = this.getClass().getSimpleName();
 
-    private final FileOutputStream fileOutputStream;
+    private final LogFileOutputStream fileOutputStream;
 
     public Buffer() {
         fileOutputStream = openBufferFile();
         LogManager.getInstance().registerBuffer(this);
     }
 
-    private FileOutputStream openBufferFile() {
+    private LogFileOutputStream openBufferFile() {
         try {
             return (isBufferAllowed()) ?
                     LogManager.getInstance().createLogOutputStream(getFilename()) : null;
@@ -26,7 +24,7 @@ public abstract class Buffer {
         }
     }
 
-    final FileOutputStream getFileOutputStream() {
+    final LogFileOutputStream getFileOutputStream() {
         return fileOutputStream;
     }
 

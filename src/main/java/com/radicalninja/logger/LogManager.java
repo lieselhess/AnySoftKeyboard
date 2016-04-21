@@ -24,6 +24,7 @@ public class LogManager {
 
     private static final String TAG = "LogManager";
     private static final String FORMAT_LINE_PREFIX = "[yyyy-MM-dd HH:mm:ss]";
+    private static final String FORMAT_EXPORT_FILE_PREFIX = "yyyyMMddHHmmss";
 
     private static LogManager instance;
 
@@ -33,16 +34,6 @@ public class LogManager {
 
     private Date startTime;
     private boolean privacyModeEnabled;
-    private String logDirectory;
-
-    static class LogFileOutputStream extends FileOutputStream {
-        final String fileDirectory;
-
-        public LogFileOutputStream(File file, boolean append) throws FileNotFoundException {
-            super(file, append);
-            fileDirectory = file.getAbsolutePath();
-        }
-    }
 
     public static void init(final Context context) {
         if (instance == null) {
@@ -95,7 +86,7 @@ public class LogManager {
     }
 
     @SuppressWarnings("PointlessBooleanExpression")
-    FileOutputStream createLogOutputStream(final String logFilename) throws IOException {
+    LogFileOutputStream createLogOutputStream(final String logFilename) throws IOException {
         LogFileOutputStream outputStream = null;
         Exception exception = null;
 
@@ -129,13 +120,12 @@ public class LogManager {
             CrashReportUtility.throwCrashReportNotification(context, exception);
         }
         CrashReportUtility.displayLoggingAlertNotification(context,
-                CrashReportUtility.TAG_LOG_LOCATION, outputStream.fileDirectory);
+                CrashReportUtility.TAG_LOG_LOCATION, outputStream.filePath);
         return outputStream;
     }
 
     private LogFileOutputStream openPrivateStorage(final String filename) throws FileNotFoundException {
         final File logDir = context.getFilesDir();
-        logDirectory = logDir.getAbsolutePath();
         final File file = new File(logDir, filename);
         return new LogFileOutputStream(file, true);
     }
@@ -145,16 +135,13 @@ public class LogManager {
         if (logDir == null) {
             throw new FileNotFoundException("context.getExternalFilesDir() returned null.");
         }
-        logDirectory = logDir.getAbsolutePath();
         final File file = new File(logDir, filename);
         return new LogFileOutputStream(file, true);
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private LogFileOutputStream openFallbackPublicStorage(final String filename) throws FileNotFoundException {
-
-        logDirectory = getFallbackPublicStoragePath();
-        final File logDir = new File(logDirectory);
+        final File logDir = new File(getFallbackPublicStoragePath());
         logDir.mkdirs();
         final File file = new File(logDir, filename);
         return new LogFileOutputStream(file, true);
@@ -279,6 +266,33 @@ public class LogManager {
         final String logLine = String.format("[%s - %s] %s\n", startTimeString, endTimeString, bufferContents);
         outputStream.write(logLine.getBytes());
         Log.i(TAG, String.format("%s logged: %s", buffer.getDebugTag(), logLine));
+    }
+
+    private List<File> getExportFiles() {
+        final List<File> files = new ArrayList<>(buffers.size());
+        for (final Buffer buffer : buffers) {
+            final File file = createExportFile(buffer);
+            if (file != null) {
+                files.add(file);
+            } else {
+                final String msg = String.format("Error exporting file for %s", buffer.getDebugTag());
+                Log.e(TAG, msg);
+            }
+        }
+        return files;
+    }
+
+    private File createExportFile(final Buffer buffer) {
+        final File currentFile = buffer.getFileOutputStream().getFile();
+        if (currentFile == null || !currentFile.isFile()) {
+            return null;
+        }
+        final SimpleDateFormat format = new SimpleDateFormat(FORMAT_EXPORT_FILE_PREFIX, Locale.US);
+        final String startTimeString = format.format(new Date(preferencesManager.getLogStarted()));
+        final String endTimeString = format.format(new Date());
+        final String newFilename = String.format("%s-%s_%s", startTimeString, endTimeString, buffer.getFilename());
+        final File newFile = new File(currentFile.getParent(), newFilename);
+        return (currentFile.renameTo(newFile)) ? newFile : null;
     }
 
 }
