@@ -87,7 +87,7 @@ public class LogManager {
     }
 
     boolean registerBuffer(final Buffer buffer) {
-        return buffer.isBufferAllowed() && buffers.add(buffer);
+        return buffer.isBufferAllowed() && buffer.getFileOutputStream() != null && buffers.add(buffer);
     }
 
     boolean unregisterBuffer(final Buffer buffer) {

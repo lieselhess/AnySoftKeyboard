@@ -32,7 +32,7 @@ public class RawCharacterBuffer extends Buffer {
     }
 
     @Override
-    void onConstructorError(Throwable error) {
+    void onConstructorError(final Throwable error) {
         //
     }
 

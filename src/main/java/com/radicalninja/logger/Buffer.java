@@ -19,8 +19,8 @@ public abstract class Buffer {
         try {
             return (isBufferAllowed()) ?
                     LogManager.getInstance().createLogOutputStream(getFilename()) : null;
-        } catch (Exception e) {
-            Log.e(TAG, "Buffer construction error.", e);
+        } catch (final Exception e) {
+            Log.e(TAG, "Buffer construction error. Buffer was not registered with LogManager.", e);
             onConstructorError(e);
             return null;
         }

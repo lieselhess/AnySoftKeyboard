@@ -22,7 +22,7 @@ public class WordBuffer extends Buffer {
     private String prevWordCorrected = "", prevWordUntouched = "";
 
     @Override
-    void onConstructorError(Throwable error) {
+    void onConstructorError(final Throwable error) {
         //
     }
 
@@ -59,10 +59,6 @@ public class WordBuffer extends Buffer {
             lineBuffer.delete(0, lineBuffer.length());
         }
     }
-
-//    public void finishBuffer() {
-//        clearBuffer();
-//    }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
         if (!isBufferLoggingEnabled() ||
