@@ -2,7 +2,7 @@ package com.radicalninja.logger;
 
 import android.util.Log;
 
-public abstract class Buffer {
+abstract class Buffer {
 
     protected final String TAG = this.getClass().getSimpleName();
 

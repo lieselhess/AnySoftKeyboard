@@ -20,7 +20,7 @@ import com.menny.android.anysoftkeyboard.R;
 import java.io.File;
 import java.util.Date;
 
-public class CrashReportUtility {
+class CrashReportUtility {
 
     // TODO: Move to its own file and build out methods
 //    static class EasyLog {

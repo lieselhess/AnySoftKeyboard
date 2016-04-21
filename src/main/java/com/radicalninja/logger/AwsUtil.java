@@ -18,7 +18,7 @@ import com.menny.android.anysoftkeyboard.BuildConfig;
 
 import java.io.File;
 
-public class AwsUtil {
+class AwsUtil {
 
     public interface FileTransferCallback {
         void onStart();

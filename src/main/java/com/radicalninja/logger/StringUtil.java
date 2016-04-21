@@ -1,6 +1,6 @@
 package com.radicalninja.logger;
 
-public class StringUtil {
+class StringUtil {
 
     public static String rlTrim(final String string, final Character ... chars) {
         int start = 0;
