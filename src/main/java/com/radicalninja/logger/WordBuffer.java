@@ -55,13 +55,13 @@ public class WordBuffer extends Buffer {
     }
 
     public void clearBuffer() {
-        if (isBufferLoggingEnabled() && (lineBuffer.length() > 0 || composingText.length() > 0)) {
+        if (isLogEnabled() && (lineBuffer.length() > 0 || composingText.length() > 0)) {
             lineBuffer.delete(0, lineBuffer.length());
         }
     }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
-        if (!isBufferLoggingEnabled() ||
+        if (!isLogEnabled() ||
                 (cursorStart == cursorPosition && diffOutOfRange(keyboardCursorStart, cursorStart, 1))) {
             return;
         }
@@ -73,7 +73,7 @@ public class WordBuffer extends Buffer {
     }
 
     public void setCursorPosition(final int cursorPosition) {
-        if (!isBufferLoggingEnabled()) {
+        if (!isLogEnabled()) {
             return;
         }
         this.cursorPosition = cursorPosition;
@@ -121,7 +121,7 @@ public class WordBuffer extends Buffer {
     }
 
     public void insertText(final WordComposer word) {
-        if (!isBufferLoggingEnabled()) {
+        if (!isLogEnabled()) {
             return;
         }
         final String input = word.getPreferredWord().toString();
@@ -138,7 +138,7 @@ public class WordBuffer extends Buffer {
     }
 
     public void insertText(String input) {
-        if (!isBufferLoggingEnabled()) {
+        if (!isLogEnabled()) {
             return;
         }
         prevInput = input;
@@ -161,7 +161,7 @@ public class WordBuffer extends Buffer {
     }
 
     public void deleteSurroundingText(final int lengthBefore, final int lengthAfter) {
-        if (!isBufferLoggingEnabled() || lengthBefore == lengthAfter) {
+        if (!isLogEnabled() || lengthBefore == lengthAfter) {
             return;
         }
         int deleteStart = Math.max(cursorPosition - lengthBefore, 0);
@@ -176,7 +176,7 @@ public class WordBuffer extends Buffer {
     }
 
     public void revertLastCorrection() {
-        if (!isBufferLoggingEnabled()) {
+        if (!isLogEnabled()) {
             return;
         }
         deleteSurroundingText(prevWordCorrected.length() + prevInput.length(), 0);
