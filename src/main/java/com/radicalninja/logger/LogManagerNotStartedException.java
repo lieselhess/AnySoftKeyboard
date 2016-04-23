@@ -1,8 +1,8 @@
 package com.radicalninja.logger;
 
-class LoggerNotCreatedException extends RuntimeException {
+class LogManagerNotStartedException extends RuntimeException {
 
-    LoggerNotCreatedException() {
+    LogManagerNotStartedException() {
         super("LogManager not initialized. Call LogManager.init(Context) first.");
     }
 

@@ -60,9 +60,9 @@ public class LogManager {
         }
     }
 
-    static LogManager getInstance() throws LoggerNotCreatedException {
+    static LogManager getInstance() throws LogManagerNotStartedException {
         if (instance == null) {
-            throw new LoggerNotCreatedException();
+            throw new LogManagerNotStartedException();
         }
         return instance;
     }
