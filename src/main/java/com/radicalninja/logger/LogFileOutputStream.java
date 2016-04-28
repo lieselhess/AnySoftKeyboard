@@ -1,5 +1,7 @@
 package com.radicalninja.logger;
 
+import android.text.TextUtils;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -14,7 +16,7 @@ class LogFileOutputStream extends FileOutputStream {
     }
 
     public File getFile() {
-        return new File(filePath);
+        return (!TextUtils.isEmpty(filePath)) ? new File(filePath) : null;
     }
 
 }

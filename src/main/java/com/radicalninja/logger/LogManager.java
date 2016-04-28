@@ -3,6 +3,7 @@ package com.radicalninja.logger;
 import android.content.Context;
 import android.os.Environment;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.inputmethod.EditorInfo;
@@ -34,6 +35,7 @@ public class LogManager {
 
     private Date startTime;
     private boolean privacyModeEnabled;
+    private FileUploadLog fileUploadLog;
 
     public static void init(final Context context) {
         if (instance == null) {
@@ -268,23 +270,58 @@ public class LogManager {
         Log.i(TAG, String.format("%s logged: %s", buffer.getDebugTag(), logLine));
     }
 
+    private void writeExportLog(final String msg, @Nullable final String label) {
+        if (fileUploadLog == null) {
+            fileUploadLog = new FileUploadLog();
+        }
+        try {
+            fileUploadLog.writeLine(label, msg);
+        } catch (final IOException e) {
+            final String errMsg = String.format("Error writing log line! (%s | %s)", label, msg);
+            Log.e(TAG, errMsg);
+        }
+    }
+
+    // TODO: Move this and callback to LogUploadTask
+    private void performLogUpload() {
+        final List<File> exportFiles = getExportFiles();
+        if (exportFiles.isEmpty()) {
+            writeExportLog("There are no buffers that need to be exported.", null);
+            return;
+        }
+        for (final File exportFile : exportFiles) {
+            //AwsUtil.uploadFileToBucket();
+        }
+    }
+
     private List<File> getExportFiles() {
         final List<File> files = new ArrayList<>(buffers.size());
         for (final Buffer buffer : buffers) {
-            final File file = createExportFile(buffer);
-            if (file != null) {
-                files.add(file);
-            } else {
-                final String msg = String.format("Error exporting file for %s", buffer.getDebugTag());
-                Log.e(TAG, msg);
+            try {
+                final File file = createExportFile(buffer);
+                if (file != null) {
+                    files.add(file);
+                    writeExportLog(buffer.getDebugTag(),
+                            String.format("Log file exported : %s", file.getName()));
+                } else {
+                    final String msg = String.format(
+                            "Log file does not need to be exported for %s", buffer.getDebugTag());
+                    Log.i(TAG, msg);
+                }
+            } catch (final IOException e) {
+                Log.e(TAG, String.format("Error exporting log for %s!", buffer.getDebugTag()), e);
             }
         }
         return files;
     }
 
-    private File createExportFile(final Buffer buffer) {
+    private File createExportFile(final Buffer buffer) throws IOException {
         final File currentFile = buffer.getFileOutputStream().getFile();
-        if (currentFile == null || !currentFile.isFile()) {
+        if (currentFile == null) {
+            throw new FileNotFoundException(
+                    String.format("Could not get file for %s!", buffer.getDebugTag()));
+        }
+        if (currentFile.length() == 0) {
             return null;
         }
         final SimpleDateFormat format = new SimpleDateFormat(FORMAT_EXPORT_FILE_PREFIX, Locale.US);
@@ -292,7 +329,12 @@ public class LogManager {
         final String endTimeString = format.format(new Date());
         final String newFilename = String.format("%s-%s_%s", startTimeString, endTimeString, buffer.getFilename());
         final File newFile = new File(currentFile.getParent(), newFilename);
-        return (currentFile.renameTo(newFile)) ? newFile : null;
+        if (currentFile.renameTo(newFile)) {
+            return newFile;
+        } else {
+            throw new IOException(
+                    String.format("File renaming operation failed for %s!", buffer.getDebugTag()));
+        }
     }
 
 }
