@@ -81,6 +81,7 @@ android {
 
         // Logger's global configuration variables
         def String str = "String"
+        buildConfigField(str, "UPLOAD_LOG_FILENAME", "\"log_uploads.log\"")
         buildConfigField(str, "FALLBACK_LOG_DIRECTORY", "\"AnySoftKeyboardLogs\"")
         buildConfigField(str, "RAW_LOG_FILENAME", "\"raw.log\"")
         buildConfigField(str, "WORD_LOG_FILENAME", "\"buffered.log\"")
