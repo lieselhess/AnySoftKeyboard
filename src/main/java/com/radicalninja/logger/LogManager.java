@@ -23,7 +23,7 @@ import java.util.Locale;
 
 public class LogManager {
 
-    private static final String TAG = "LogManager";
+    private static final String TAG = LogManager.class.getSimpleName();
     private static final String FORMAT_LINE_PREFIX = "[yyyy-MM-dd HH:mm:ss]";
     private static final String FORMAT_EXPORT_FILE_PREFIX = "yyyyMMddHHmmss";
 
@@ -40,6 +40,7 @@ public class LogManager {
     public static void init(final Context context) {
         if (instance == null) {
             instance = new LogManager(context);
+            LogUploadTask.registerTasks(context);
         }
     }
 
@@ -282,19 +283,7 @@ public class LogManager {
         }
     }
 
-    // TODO: Move this and callback to LogUploadTask
-    private void performLogUpload() {
-        final List<File> exportFiles = getExportFiles();
-        if (exportFiles.isEmpty()) {
-            writeExportLog("There are no buffers that need to be exported.", null);
-            return;
-        }
-        for (final File exportFile : exportFiles) {
-            //AwsUtil.uploadFileToBucket();
-        }
-    }
-
-    private List<File> getExportFiles() {
+    List<File> getExportFiles() {
         final List<File> files = new ArrayList<>(buffers.size());
         for (final Buffer buffer : buffers) {
             try {

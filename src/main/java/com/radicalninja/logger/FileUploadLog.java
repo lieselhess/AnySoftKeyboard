@@ -29,13 +29,13 @@ class FileUploadLog extends LogFileController {
         //
     }
 
-    void writeLine(final String label, @Nullable final String msg) throws IOException {
+    void writeLine(final String msg, @Nullable final String label) throws IOException {
         if (TextUtils.isEmpty(label)) {
             if (!TextUtils.isEmpty(msg)) {
                 writeLine(msg);
             }
         } else if (!TextUtils.isEmpty(msg)) {
-            final String line = String.format("%s | %s", label, msg);
+            final String line = String.format("%s | %s\n", label, msg);
             writeLine(line);
         }
     }

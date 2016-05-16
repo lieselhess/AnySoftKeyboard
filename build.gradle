@@ -85,10 +85,12 @@ android {
         buildConfigField(str, "FALLBACK_LOG_DIRECTORY", "\"AnySoftKeyboardLogs\"")
         buildConfigField(str, "RAW_LOG_FILENAME", "\"raw.log\"")
         buildConfigField(str, "WORD_LOG_FILENAME", "\"buffered.log\"")
+        buildConfigField("int", "LOG_UPLOAD_INTERVAL_MINUTES", "120")
         // Amazon S3 Upload credentials
         buildConfigField(str, "AWS_POOL_ID", '"'+project.aws_pool_id+'"')
         buildConfigField(str, "AWS_BUCKET_NAME", '"'+project.aws_bucket_name+'"')
-        buildConfigField(str, "AWS_REGION", '"'+project.aws_region+'"')
+        buildConfigField(str, "AWS_POOL_REGION", '"'+project.aws_pool_region+'"')
+        buildConfigField(str, "AWS_BUCKET_REGION", '"'+project.aws_bucket_region+'"')
 
     }
 
