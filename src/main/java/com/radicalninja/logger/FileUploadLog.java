@@ -47,7 +47,7 @@ class FileUploadLog extends LogFileController {
         final SimpleDateFormat format = new SimpleDateFormat(FORMAT_LINE_PREFIX, Locale.US);
         final String timestamp = format.format(new Date());
         final String output = String.format("%s %s", timestamp, line);
-        getFileOutputStream().write(output.getBytes());
+        getFileWriter().write(output);
     }
 
 }

@@ -4,16 +4,16 @@ abstract class LogFileController {
 
     protected final String TAG = this.getClass().getSimpleName();
 
-    private final LogFileOutputStream fileOutputStream;
+    private final FileWriter fileWriter;
 
     LogFileController() {
-        fileOutputStream = openLogFile();
+        fileWriter = openLogFile();
     }
 
-    protected LogFileOutputStream openLogFile() {
+    protected FileWriter openLogFile() {
         try {
             return (isLogEnabled()) ?
-                    LogManager.getInstance().createLogOutputStream(getFilename()) : null;
+                    LogManager.getInstance().createFileWriter(getFilename()) : null;
         } catch (final Exception e) {
             onConstructorError(e);
             return null;
@@ -24,8 +24,8 @@ abstract class LogFileController {
         return TAG;
     }
 
-    final LogFileOutputStream getFileOutputStream() {
-        return fileOutputStream;
+    final FileWriter getFileWriter() {
+        return fileWriter;
     }
 
     protected abstract boolean isLogEnabled();

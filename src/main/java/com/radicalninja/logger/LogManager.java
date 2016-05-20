@@ -81,7 +81,7 @@ public class LogManager {
     }
 
     boolean registerBuffer(final Buffer buffer) {
-        return buffer.isBufferAllowed() && buffer.getFileOutputStream() != null && buffers.add(buffer);
+        return buffer.isBufferAllowed() && buffer.getFileWriter() != null && buffers.add(buffer);
     }
 
     boolean unregisterBuffer(final Buffer buffer) {
@@ -89,25 +89,25 @@ public class LogManager {
     }
 
     @SuppressWarnings("PointlessBooleanExpression")
-    LogFileOutputStream createLogOutputStream(final String logFilename) throws IOException {
-        LogFileOutputStream outputStream = null;
+    FileWriter createFileWriter(final String logFilename) throws IOException {
+        FileWriter fileWriter = null;
         Exception exception = null;
 
         try {
             if (!BuildConfig.USE_SDCARD) {
-                outputStream = openPrivateStorage(logFilename);
+                fileWriter = openPrivateStorage(logFilename);
             } else {
                 // Try opening log files on the SD card, fall back to alternate locations on failures.
                 try {
-                    outputStream = openExternalPublicStorage(logFilename);
+                    fileWriter = openExternalPublicStorage(logFilename);
                 } catch (final FileNotFoundException e2) {
                     exception = e2;
                     try {
-                        outputStream = openFallbackPublicStorage(logFilename);
+                        fileWriter = openFallbackPublicStorage(logFilename);
                     } catch (final FileNotFoundException e3) {
                         exception = e3;
                         // Final exception defaults to private storage in /data/data.
-                        outputStream = openPrivateStorage(logFilename);
+                        fileWriter = openPrivateStorage(logFilename);
                     }
                 }
             }
@@ -115,7 +115,7 @@ public class LogManager {
             exception = e1;
         }
 
-        if (outputStream == null) {
+        if (fileWriter == null) {
             throw new IOException("Could not open private or public storage!");
         }
 
@@ -123,31 +123,31 @@ public class LogManager {
             CrashReportUtility.throwCrashReportNotification(context, exception);
         }
         CrashReportUtility.displayLoggingAlertNotification(context,
-                CrashReportUtility.TAG_LOG_LOCATION, outputStream.filePath);
-        return outputStream;
+                CrashReportUtility.TAG_LOG_LOCATION, fileWriter.filePath);
+        return fileWriter;
     }
 
-    private LogFileOutputStream openPrivateStorage(final String filename) throws FileNotFoundException {
+    private FileWriter openPrivateStorage(final String filename) throws IOException {
         final File logDir = context.getFilesDir();
-        final File file = new File(logDir, filename);
-        return new LogFileOutputStream(file, true);
+        final String filePath = String.format("%s/%s", logDir, filename);
+        return new FileWriter(filePath, true);
     }
 
-    private LogFileOutputStream openExternalPublicStorage(final String filename) throws FileNotFoundException {
+    private FileWriter openExternalPublicStorage(final String filename) throws IOException {
         final File logDir = context.getExternalFilesDir(null);
         if (logDir == null) {
             throw new FileNotFoundException("context.getExternalFilesDir() returned null.");
         }
-        final File file = new File(logDir, filename);
-        return new LogFileOutputStream(file, true);
+        final String filePath = String.format("%s/%s", logDir, filename);
+        return new FileWriter(filePath, true);
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    private LogFileOutputStream openFallbackPublicStorage(final String filename) throws FileNotFoundException {
+    private FileWriter openFallbackPublicStorage(final String filename) throws IOException {
         final File logDir = new File(getFallbackPublicStoragePath());
         logDir.mkdirs();
-        final File file = new File(logDir, filename);
-        return new LogFileOutputStream(file, true);
+        final String filePath = String.format("%s/%s", logDir, filename);
+        return new FileWriter(filePath, true);
     }
 
     private String getFallbackPublicStoragePath() {
@@ -240,7 +240,7 @@ public class LogManager {
         while (iterator.hasNext()) {
             final Buffer buffer = iterator.next();
             try {
-                buffer.getFileOutputStream().close();
+                buffer.getFileWriter().close();
             } catch (final IOException e) {
                 Log.e(TAG, String.format("Error closing FileOutputStream for %s",
                         buffer.getDebugTag()), e);
@@ -257,7 +257,7 @@ public class LogManager {
         if (TextUtils.isEmpty(bufferContents)) {
             return;
         }
-        final FileOutputStream outputStream = buffer.getFileOutputStream();
+        final FileWriter outputStream = buffer.getFileWriter();
         if (outputStream == null) {
             // Buffers that are don't successfully create a FileOutputStream should not get
             throw new NullPointerException(
@@ -267,7 +267,7 @@ public class LogManager {
         final String startTimeString = format.format(startTime);
         final String endTimeString = format.format(new Date());
         final String logLine = String.format("[%s - %s] %s\n", startTimeString, endTimeString, bufferContents);
-        outputStream.write(logLine.getBytes());
+        outputStream.write(logLine);
         Log.i(TAG, String.format("%s logged: %s", buffer.getDebugTag(), logLine));
     }
 
@@ -305,7 +305,7 @@ public class LogManager {
     }
 
     private File createExportFile(final Buffer buffer) throws IOException {
-        final File currentFile = buffer.getFileOutputStream().getFile();
+        final File currentFile = buffer.getFileWriter().getFile();
         if (currentFile == null) {
             throw new FileNotFoundException(
                     String.format("Could not get file for %s!", buffer.getDebugTag()));
