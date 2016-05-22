@@ -1,5 +1,7 @@
 package com.radicalninja.logger;
 
+import java.io.IOException;
+
 abstract class LogFileController {
 
     protected final String TAG = this.getClass().getSimpleName();
@@ -24,7 +26,10 @@ abstract class LogFileController {
         return TAG;
     }
 
-    final FileWriter getFileWriter() {
+    final FileWriter getFileWriter() throws IOException {
+        if (fileWriter == null) {
+            throw new IOException(String.format("%s's FileWriter does not exist!", getDebugTag()));
+        }
         return fileWriter;
     }
 

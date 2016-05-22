@@ -59,6 +59,10 @@ public class CipherUtils {
         return new BufferedReader(new InputStreamReader(cis));
     }
 
+    public static boolean isEncryptedFileEmpty(final File file) {
+        return file.length() <= 16 + HEADER_LENGTH;
+    }
+
     public void test(File zfilename) throws Exception {
 
         BufferedWriter cos = flushableEncryptedBufferedWriter(zfilename, false);

@@ -1,5 +1,6 @@
 package com.radicalninja.logger;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 
@@ -22,6 +23,7 @@ class PreferencesManager {
         return instance;
     }
 
+    @SuppressLint("CommitPrefEdits")
     private PreferencesManager(final Context context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         editor = prefs.edit();

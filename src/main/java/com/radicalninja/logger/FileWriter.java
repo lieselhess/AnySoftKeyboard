@@ -12,9 +12,10 @@ import java.io.OutputStreamWriter;
 
 public class FileWriter {
 
-    final boolean encryptionEnabled;
+    final boolean append, encryptionEnabled;
     final String filePath;
-    final BufferedWriter writer;
+
+    BufferedWriter writer;
 
     public FileWriter(final String filePath, final boolean append) throws IOException {
         this(filePath, append, BuildConfig.USE_ENCRYPTION);
@@ -23,15 +24,18 @@ public class FileWriter {
     private FileWriter(final String filePath, final boolean append, final boolean encryptionEnabled)
             throws IOException {
         this.filePath = filePath;
+        this.append = append;
         this.encryptionEnabled = encryptionEnabled;
-        writer = createFileWriter(append, encryptionEnabled);
+        openFileWriter();
     }
 
-    private BufferedWriter createFileWriter(final boolean append, final boolean useEncryption) throws IOException {
-        final File file = getFile();
-        return useEncryption ?
-                CipherUtils.flushableEncryptedBufferedWriter(file, append) :
-                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"));
+    private void openFileWriter() throws IOException {
+        synchronized (this) {
+            final File file = getFile();
+            writer = encryptionEnabled ?
+                    CipherUtils.flushableEncryptedBufferedWriter(file, append) :
+                    new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"));
+        }
     }
 
     public File getFile() {
@@ -39,24 +43,51 @@ public class FileWriter {
     }
 
     public void write(final String str) throws IOException {
-        writer.write(str);
-        writer.flush();
-    }
-
-    public void close() throws IOException {
-        if (writer != null) {
-            writer.close();
+        synchronized (this) {
+            if (writer != null) {
+                writer.write(str);
+                writer.flush();
+            } else {
+                throw new IOException(
+                        String.format("File writer does not exist for {%s}", filePath));
+            }
         }
     }
 
-    public File exportFile(final String filename) {
-        // close file stream
-        // create file reader
-        // copy file data to new file
-        // truncate file
-        // open file stream again
-        // return the File object with the copied data
-        return null;
+    public void close() throws IOException {
+        synchronized (this) {
+            if (writer != null) {
+                writer.close();
+            } else {
+                throw new IOException(
+                        String.format("File writer does not exist for {%s}", filePath));
+            }
+        }
+    }
+
+    private boolean isEmpty(final File file) {
+        synchronized (this) {
+            return encryptionEnabled ? CipherUtils.isEncryptedFileEmpty(file) : file.length() == 0;
+        }
+    }
+
+    public File exportFile(final String exportedFilename) throws IOException {
+        synchronized (this) {
+            final File currentFile = getFile();
+            if (isEmpty(currentFile)) {
+                return null;
+            }
+            close();
+            final File newFile = new File(currentFile.getParent(), exportedFilename);
+            final boolean renamed = currentFile.renameTo(newFile);
+            openFileWriter();
+            if (renamed) {
+                return newFile;
+            } else {
+                throw new IOException(
+                        String.format("File renaming operation failed for {%s}", filePath));
+            }
+        }
     }
 
 }

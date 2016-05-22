@@ -81,7 +81,11 @@ public class LogManager {
     }
 
     boolean registerBuffer(final Buffer buffer) {
-        return buffer.isBufferAllowed() && buffer.getFileWriter() != null && buffers.add(buffer);
+        try {
+            return buffer.isBufferAllowed() && buffer.getFileWriter() != null && buffers.add(buffer);
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     boolean unregisterBuffer(final Buffer buffer) {
@@ -305,25 +309,11 @@ public class LogManager {
     }
 
     private File createExportFile(final Buffer buffer) throws IOException {
-        final File currentFile = buffer.getFileWriter().getFile();
-        if (currentFile == null) {
-            throw new FileNotFoundException(
-                    String.format("Could not get file for %s!", buffer.getDebugTag()));
-        }
-        if (currentFile.length() == 0) {
-            return null;
-        }
         final SimpleDateFormat format = new SimpleDateFormat(FORMAT_EXPORT_FILE_PREFIX, Locale.US);
         final String startTimeString = format.format(new Date(preferencesManager.getLogStarted()));
         final String endTimeString = format.format(new Date());
         final String newFilename = String.format("%s-%s_%s", startTimeString, endTimeString, buffer.getFilename());
-        final File newFile = new File(currentFile.getParent(), newFilename);
-        if (currentFile.renameTo(newFile)) {
-            return newFile;
-        } else {
-            throw new IOException(
-                    String.format("File renaming operation failed for %s!", buffer.getDebugTag()));
-        }
+        return buffer.getFileWriter().exportFile(newFilename);
     }
 
 }
