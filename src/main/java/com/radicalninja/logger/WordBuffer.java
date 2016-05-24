@@ -1,7 +1,12 @@
 package com.radicalninja.logger;
 
+import android.text.TextUtils;
+
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
 import com.menny.android.anysoftkeyboard.BuildConfig;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * WordBuffer keeps a buffer of the user's current typing line.
@@ -26,9 +31,10 @@ public class WordBuffer extends Buffer {
         //
     }
 
+    @SuppressWarnings("ConstantConditions")
     @Override
     String getBufferContents() {
-        return lineBuffer.toString();
+        return BuildConfig.LOG_WORD_SAMPLE_INTERVAL > 1 ? getWordSample() : lineBuffer.toString();
     }
 
     @Override
@@ -58,6 +64,17 @@ public class WordBuffer extends Buffer {
         if (isLogEnabled() && (lineBuffer.length() > 0 || composingText.length() > 0)) {
             lineBuffer.delete(0, lineBuffer.length());
         }
+    }
+
+    private String getWordSample() {
+        final String[] bufferWords = lineBuffer.toString().split("\\s+");
+        final List<String> sample = new ArrayList<>();
+        for (int i = 0; i < bufferWords.length; i++) {
+            if (i % BuildConfig.LOG_WORD_SAMPLE_INTERVAL == 0) {
+                sample.add(bufferWords[i]);
+            }
+        }
+        return TextUtils.join(" ", sample);
     }
 
     public void setCursorPositions(final int cursorStart, final int cursorEnd) {
