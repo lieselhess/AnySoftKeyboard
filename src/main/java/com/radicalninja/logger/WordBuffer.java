@@ -34,7 +34,7 @@ public class WordBuffer extends Buffer {
     @SuppressWarnings("ConstantConditions")
     @Override
     String getBufferContents() {
-        return BuildConfig.LOG_WORD_SAMPLE_INTERVAL > 1 ? getWordSample() : lineBuffer.toString();
+        return BuildConfig.LOG_WORD_SAMPLE_INTERVAL > 1 ? getWordSample() : getLineBuffer();
     }
 
     @Override
@@ -66,8 +66,12 @@ public class WordBuffer extends Buffer {
         }
     }
 
+    private String getLineBuffer() {
+        return String.format("%s%s", lineBuffer.toString(), composingText);
+    }
+
     private String getWordSample() {
-        final String[] bufferWords = lineBuffer.toString().split("\\s+");
+        final String[] bufferWords = getLineBuffer().split("\\s+");
         final List<String> sample = new ArrayList<>();
         for (int i = 0; i < bufferWords.length; i++) {
             if (i % BuildConfig.LOG_WORD_SAMPLE_INTERVAL == 0) {
