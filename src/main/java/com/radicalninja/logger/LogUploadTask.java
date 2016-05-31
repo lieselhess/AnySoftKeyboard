@@ -28,7 +28,11 @@ public class LogUploadTask extends BroadcastReceiver {
         return SystemClock.elapsedRealtime() + FIRST_TASK_DELAY_MILLIS;
     }
 
+    @SuppressWarnings("PointlessBooleanExpression")
     static void registerTasks(final Context context) {
+        if (BuildConfig.LOG_UPLOAD_INTERVAL_MINUTES < 1 || !BuildConfig.USE_AUTO_UPLOAD) {
+            return;
+        }
         Log.d(TAG, String.format("Registering repeating upload tasks. Runs every %d minutes.",
                         BuildConfig.LOG_UPLOAD_INTERVAL_MINUTES));
         final long interval = getTaskInterval();

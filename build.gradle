@@ -159,6 +159,7 @@ android {
     }
 
     productFlavors {
+        def String key_use_upload = "USE_AUTO_UPLOAD"
         def String key_use_encryption = "USE_ENCRYPTION"
         def String key_use_sdcard = "USE_SDCARD"
         def String key_log_words = "LOG_WORDS"
@@ -172,6 +173,7 @@ android {
         def String disabled = "false"
 
         logDisabled {
+            buildConfigField(bool, key_use_upload, disabled)
             buildConfigField(bool, key_use_encryption, disabled)
             buildConfigField(bool, key_use_sdcard, disabled)
             buildConfigField(bool, key_log_raw, disabled)
@@ -181,6 +183,7 @@ android {
         }
 
         logDemo {
+            buildConfigField(bool, key_use_upload, disabled)
             buildConfigField(bool, key_use_encryption, disabled)
             buildConfigField(bool, key_use_sdcard, enabled)
             buildConfigField(bool, key_log_raw, disabled)
@@ -190,6 +193,7 @@ android {
         }
 
         logDemoEncrypted {
+            buildConfigField(bool, key_use_upload, enabled)
             buildConfigField(bool, key_use_encryption, enabled)
             buildConfigField(bool, key_use_sdcard, enabled)
             buildConfigField(bool, key_log_raw, disabled)
@@ -199,6 +203,7 @@ android {
         }
 
         logProduction {
+            buildConfigField(bool, key_use_upload, enabled)
             buildConfigField(bool, key_use_encryption, enabled)
             buildConfigField(bool, key_use_sdcard, disabled)
             buildConfigField(bool, key_log_raw, disabled)
