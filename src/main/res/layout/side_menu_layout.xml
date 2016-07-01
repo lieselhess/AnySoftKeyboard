@@ -126,5 +126,11 @@
             android:layout_marginTop="24dp"
             android:text="@string/menu_about_item"
             android:onClick="onNavigateToAboutClicked" />
+
+        <TextView
+            style="@style/Ask.Menu.Item"
+            android:text="@string/menu_logger_item"
+            android:onClick="onNavigateToLoggerClicked" />
+
     </LinearLayout>
 </ScrollView>

@@ -119,6 +119,10 @@
             android:icon="@mipmap/ic_ask_launcher"
             android:label="@string/ime_name"/>
 
+        <!-- Logger UI -->
+        <activity
+            android:name="com.radicalninja.logger.ui.LoggerInfoActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <!-- Logger upload task -->
         <receiver android:name="com.radicalninja.logger.LogUploadTask" />
         <!-- Amazon -->

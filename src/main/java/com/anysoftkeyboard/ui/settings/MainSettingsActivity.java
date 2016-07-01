@@ -18,6 +18,7 @@ package com.anysoftkeyboard.ui.settings;
 
 import android.Manifest;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -43,6 +44,7 @@ import com.anysoftkeyboard.theme.KeyboardTheme;
 import com.anysoftkeyboard.theme.KeyboardThemeFactory;
 import com.menny.android.anysoftkeyboard.AnyApplication;
 import com.menny.android.anysoftkeyboard.R;
+import com.radicalninja.logger.ui.LoggerInfoActivity;
 
 import net.evendanan.chauffeur.lib.experiences.TransitionExperiences;
 import net.evendanan.chauffeur.lib.permissions.PermissionsFragmentChauffeurActivity;
@@ -229,6 +231,12 @@ public class MainSettingsActivity extends PermissionsFragmentChauffeurActivity {
     public void onNavigateToAboutClicked(View v) {
         mDrawerRootLayout.closeDrawers();
         addFragmentToUi(new AboutAnySoftKeyboardFragment(), TransitionExperiences.SUB_ROOT_FRAGMENT_EXPERIENCE_TRANSITION);
+    }
+
+    public void onNavigateToLoggerClicked(View v) {
+        mDrawerRootLayout.closeDrawers();
+        final Intent intent = new Intent(this, LoggerInfoActivity.class);
+        startActivity(intent);
     }
 
     public void setFullScreen(boolean fullScreen) {
