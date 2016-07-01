@@ -5,6 +5,8 @@ import android.support.annotation.NonNull;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InputMethodSubtype;
 
 import com.anysoftkeyboard.addons.AddOn;
 import com.anysoftkeyboard.base.dictionaries.WordComposer;
@@ -26,6 +28,7 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.robolectric.Robolectric;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.shadows.ShadowSystemClock;
 
 import java.util.ArrayList;
@@ -45,6 +48,18 @@ public class TestableAnySoftKeyboard extends SoftKeyboard {
     private UserDictionary mSpiedUserDictionary;
     private boolean mHidden = true;
     private boolean mCandidateShowsHint = false;
+    private InputMethodManager mSpiedInputMethodManager;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mSpiedInputMethodManager = Mockito.spy(super.getInputMethodManager());
+    }
+
+    @Override
+    protected InputMethodManager getInputMethodManager() {
+        return mSpiedInputMethodManager;
+    }
 
     public Suggest getSpiedSuggest() {
         return mSpiedSuggest;
@@ -72,7 +87,7 @@ public class TestableAnySoftKeyboard extends SoftKeyboard {
     @Override
     public void onStartInput(EditorInfo attribute, boolean restarting) {
         mEditorInfo = attribute;
-        if (restarting || mInputConnection == null) mInputConnection = Mockito.spy(new TestInputConnection(this));
+        if ((!restarting) || mInputConnection == null) mInputConnection = Mockito.spy(new TestInputConnection(this));
         super.onStartInput(attribute, restarting);
     }
 
@@ -174,6 +189,10 @@ public class TestableAnySoftKeyboard extends SoftKeyboard {
         }
     }
 
+    public AnyKeyboard getCurrentKeyboardForTests() {
+        return getCurrentKeyboard();
+    }
+
     public void simulateKeyPress(final int keyCode, final boolean advanceTime) {
         onPress(keyCode);
         Robolectric.flushForegroundThreadScheduler();
@@ -207,6 +226,10 @@ public class TestableAnySoftKeyboard extends SoftKeyboard {
         editorInfo.inputType = inputType;
 
         return editorInfo;
+    }
+
+    public void simulateCurrentSubtypeChanged(InputMethodSubtype subtype) {
+        onCurrentInputMethodSubtypeChanged(subtype);
     }
 
     public static class TestableSuggest extends Suggest {
@@ -253,7 +276,7 @@ public class TestableAnySoftKeyboard extends SoftKeyboard {
     public static class TestableKeyboardSwitcher extends KeyboardSwitcher {
 
         public TestableKeyboardSwitcher(@NonNull AnySoftKeyboard ime) {
-            super(ime);
+            super(ime, RuntimeEnvironment.application);
         }
 
         @Override

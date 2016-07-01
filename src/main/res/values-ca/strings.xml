@@ -12,8 +12,7 @@
     </string>
   <string name="menu_about_item">Quant a...</string>
   <string name="how_to_pointer_title">Us donem la benvinguda a l\'AnySoftKeyboard</string>
-  <string name="how_to_pointer_not_app">L\'AnySoftKeyboard no és només una aplicació per escriure; és un substitut del vostre teclat en pantalla actual!
-    </string>
+  
   <string name="change_log_card_version_title_template">\u0020\u0020Latest changes for v<xliff:g id="nom">%s</xliff:g>\u0020\u0020</string>
   <string name="change_log_entry_header_template_without_name">\u0020\u0020v<xliff:g id="codi">%s</xliff:g>\u0020\u0020</string>
   <string name="ime_name_beta">AnySoftKeyboard BETA</string>
@@ -37,11 +36,6 @@
   <string name="hint_add_to_dictionary">Premeu altre vegada per desar el mot</string>
   <string name="hint_double_tap_to_close">Novament per suprimir suggeriments</string>
   <string name="ui_group">Interfície d\'usuari</string>
-  <string-array name="physical_keyboard_change_notification_types">
-    <item>Mostra sempre la icona del teclat actiu</item>
-    <item>Mostra només en activar el teclat físic</item>
-    <item>Cap notificació</item>
-  </string-array>
   <string name="voice_input_not_installed_title">No està instal·lat el reconeixement vocal</string>
   <string name="voice_input_not_installed_text">És necessari instal·lar el reconeixement de veu del Google abans d\'utilitzar aquesta característica.
     </string>
@@ -428,8 +422,6 @@
     
     </string>
   <string name="should_swap_punctuation_and_space_title">Intercanvia el punt i l\'espai</string>
-  <string name="should_swap_punctuation_and_space_yes">Sí</string>
-  <string name="should_swap_punctuation_and_space_no">No</string>
   <string name="initial_quick_text_tab_title">Grup inicial</string>
   <string name="initial_quick_text_tab_summary">El grup de text ràpid comença amb: %s</string>
   <string name="initial_quick_text_tab_always_first_tab">Comença sempre amb el primer</string>
@@ -494,7 +486,7 @@
   <string name="setup_wizard_step_two">Pas dos:</string>
   <string name="setup_wizard_step_three">Pas tres:</string>
   <string name="main_fragment_go_to_settings_button">Vés a la configuració</string>
-  <string name="quick_text_tab_title_template"><xliff:g id="first_key">%s</xliff:g>\u0020<xliff:g id="name">%s</xliff:g></string>
+  
   <string name="accessibility_item_reorder_slider">Lliscador per ordenar els objectes</string>
   <string name="next_word_dict_settings">Configuració de paraules noves</string>
   <string name="next_word_settings_group">Configuració</string>

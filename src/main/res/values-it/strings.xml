@@ -14,7 +14,7 @@
   <!-- main form -->
   <!-- welcome tab -->
   <string name="how_to_pointer_title">Benvenuti in AnySoftKeyboard</string>
-  <string name="how_to_pointer_not_app">AnySoftKeyboard non è una normale applicazione - è una tastiera a schermo alternativa.    </string>
+  
   <!-- links tab -->
   <string name="change_log_card_version_title_template">\u0020\u0020Modifiche recenti per v <xliff:g id="name">%s </xliff:g> \u0020\u0020</string>
   <string name="change_log_entry_header_template_without_name">\u0020\u0020v<xliff:g id="code">%s</xliff:g>\u0020\u0020</string>
@@ -44,11 +44,6 @@
   <string name="hint_double_tap_to_close">Di nuovo per rimuovere i suggerimenti</string>
   <!-- settings - UI -->
   <string name="ui_group">Interfaccia utente</string>
-  <string-array name="physical_keyboard_change_notification_types">
-    <item>Mostra sempre l\' icona layout</item>
-    <item>Su cambiamento di tastiera fisica</item>
-    <item>Nessuna notifica</item>
-  </string-array>
   <!-- voice -->
   <string name="voice_input_not_installed_title">Input vocale non installato</string>
   <string name="voice_input_not_installed_text">Input vocale di Google non è installato sul tuo dispositivo.\nCiò può essere facilmente risolto: installalo ora da <i>Google Play Store</i>.</string>
@@ -460,8 +455,6 @@
   <string name="user_dict_restore_fail_text_with_error">Impossibile ripristinare le parole a causa di: <xliff:g id="error">%s</xliff:g>
     </string>
   <string name="should_swap_punctuation_and_space_title">Scambio punteggiatura e spazio</string>
-  <string name="should_swap_punctuation_and_space_yes">Sì</string>
-  <string name="should_swap_punctuation_and_space_no">No</string>
   <string name="initial_quick_text_tab_title">Gruppo iniziale</string>
   <string name="initial_quick_text_tab_summary">Il gruppo Testo Rapido deve iniziare con: %s</string>
   <string name="initial_quick_text_tab_always_first_tab">Inizia sempre con il primo</string>
@@ -524,7 +517,7 @@
   <string name="setup_wizard_step_two">Secondo passaggio:</string>
   <string name="setup_wizard_step_three">Terzo passaggio:</string>
   <string name="main_fragment_go_to_settings_button">Vai alle impostazioni</string>
-  <string name="quick_text_tab_title_template"><xliff:g id="first_key">%s</xliff:g>\u0020<xliff:g id="name">%s</xliff:g></string>
+  
   <string name="accessibility_item_reorder_slider">Slider per riordinare gli elementi</string>
   <string name="next_word_dict_settings">Impostazioni parola successiva</string>
   <string name="next_word_settings_group">Impostazioni</string>

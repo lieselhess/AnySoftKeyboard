@@ -1,8 +1,8 @@
 import versionbuilder.VersionBuilder
 
-ext.androidBuildTools = '23.0.3'
-ext.supportLibVersion = '23.2.1'
-ext.AnySoftKeyboardApiVersion = '1.3.4'
+ext.androidBuildTools = '24.0.0'
+ext.supportLibVersion = '24.0.0'
+ext.AnySoftKeyboardApiVersion = '1.3.5'
 
 ext.sdkTargetVersion = 22
 ext.sdkCompileVersion = 23
@@ -19,10 +19,15 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.0.0'
-        classpath 'io.fabric.tools:gradle:1.21.4'
+        classpath 'com.android.tools.build:gradle:2.1.2'
+        classpath 'io.fabric.tools:gradle:1.21.5'
         classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.8"
         classpath 'com.github.triplet.gradle:play-publisher:1.1.4'
+        classpath 'com.github.AnySoftKeyboard.AnySoftKeyboardTools:makedictionary:c00bc22ab2f7561633bcb2d6879ea0740ccad633'
+        classpath 'com.github.AnySoftKeyboard.AnySoftKeyboardTools:generatewordslist:c00bc22ab2f7561633bcb2d6879ea0740ccad633'
+        //classpath files('english_dictionary/generatewordslist-1.0-SNAPSHOT.jar')
+        classpath 'org.jsoup:jsoup:1.9.1'
+        classpath 'com.github.gfx.ribbonizer:plugin:0.6.0'
     }
 }
 
@@ -30,6 +35,9 @@ apply plugin: "net.ltgt.errorprone"
 apply plugin: 'com.android.application'
 apply plugin: 'io.fabric'
 apply plugin: 'com.github.triplet.play'
+apply plugin: 'pmd'
+apply plugin: 'jacoco'
+apply plugin: 'com.github.gfx.ribbonizer'
 
 allprojects {
     repositories {
@@ -44,13 +52,13 @@ repositories {
     maven { url 'https://maven.fabric.io/public' }
 }
 
-apply plugin: 'pmd'
-apply plugin: 'jacoco'
+def COUNT_MINOR_NORMALIZE = 140+50+38+167+930
+def versionBuilder = VersionBuilder.getVersionBuilder(1, 8, -COUNT_MINOR_NORMALIZE)
 
-version VersionBuilder.buildGitVersionName()
+version versionBuilder.buildVersionName()
 group 'net.evendanan'
 
-println "Building AnySoftKeyboard " + version
+println "Building AnySoftKeyboard " + version + ", version-code "+versionBuilder.buildVersionNumber()
 
 android {
     packagingOptions {
@@ -65,7 +73,7 @@ android {
 
     defaultConfig {
         applicationId 'com.menny.android.anysoftkeyboard'
-        versionCode VersionBuilder.buildGitVersionNumber()
+        versionCode versionBuilder.buildVersionNumber()
         versionName project.version
 
         minSdkVersion sdkMinimumVersion
@@ -243,6 +251,10 @@ task jacocoTestReport(type: JacocoReport/*make sure you are running testDebug pr
     }
 }
 
+ribbonizer {
+    forcedVariantsNames "canary","debug"
+}
+
 configurations.errorprone {
     resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.0.8'
 }
@@ -252,6 +264,57 @@ play {
     serviceAccountEmail = System.getenv("PUBLISH_APK_SERVICE_ACCOUNT_EMAIL")
     pk12File = file('/tmp/apk_upload_key.p12')
     uploadImages = false
+}
+
+task parseStateAssembly(type: com.anysoftkeyboard.tools.generatewordslist.GenerateWordsListTask) {
+    inputFile new File(project.getProjectDir(), "english_dictionary/NY_STATE_ASSEMBLY_TRANSCRIPT_20120621.txt")
+    outputWordsListFile new File(project.getProjectDir(), "english_dictionary/words_ny_state_assembly.xml")
+}
+
+task parseEnWikipediaManualOfStyle(type: com.anysoftkeyboard.tools.generatewordslist.GenerateWordsListTask) {
+    inputFile new File(project.getProjectDir(), "english_dictionary/Wikipedia_talk_Manual_of_Style.htm")
+    inputFileType = com.anysoftkeyboard.tools.generatewordslist.GenerateWordsListTask.InputFileType.Html
+    //Download the archive from https://dumps.wikimedia.org/other/static_html_dumps/current/simple/
+    outputWordsListFile new File(project.getProjectDir(), "english_dictionary/words_en_wikipedia_manual_of_style.xml")
+}
+
+task parseEnWikipediaJimboUser(type: com.anysoftkeyboard.tools.generatewordslist.GenerateWordsListTask) {
+    inputFile new File(project.getProjectDir(), "english_dictionary/Wikipedia_User_talk_Jimbo_Wales.htm")
+    inputFileType = com.anysoftkeyboard.tools.generatewordslist.GenerateWordsListTask.InputFileType.Html
+    //Download the archive from https://dumps.wikimedia.org/other/static_html_dumps/current/simple/
+    outputWordsListFile new File(project.getProjectDir(), "english_dictionary/words_en_wikipedia_jimbo.xml")
+}
+
+task parseEnWikipediaEnglishCivilWar(type: com.anysoftkeyboard.tools.generatewordslist.GenerateWordsListTask) {
+    inputFile new File(project.getProjectDir(), "english_dictionary/First_English_Civil_War_Wikipedia.htm")
+    inputFileType = com.anysoftkeyboard.tools.generatewordslist.GenerateWordsListTask.InputFileType.Html
+    //Download the archive from https://dumps.wikimedia.org/other/static_html_dumps/current/simple/
+    outputWordsListFile new File(project.getProjectDir(), "english_dictionary/words_en_wikipedia_civil_war.xml")
+}
+
+task mergeAllWordLists(type: com.anysoftkeyboard.tools.generatewordslist.MergeWordsListTask) {
+    dependsOn parseStateAssembly
+    dependsOn parseEnWikipediaManualOfStyle
+    dependsOn parseEnWikipediaJimboUser
+    dependsOn parseEnWikipediaEnglishCivilWar
+
+    inputWordsListFiles = [
+            new File(project.getProjectDir(), "english_dictionary/words.xml"),//legacy dictionary
+            new File(project.getProjectDir(), "english_dictionary/words_ny_state_assembly.xml"),
+            new File(project.getProjectDir(), "english_dictionary/popular_websites_words.xml"),//website I use most
+            new File(project.getProjectDir(), "english_dictionary/words_en_wikipedia_manual_of_style.xml"),
+            new File(project.getProjectDir(), "english_dictionary/words_en_wikipedia_civil_war.xml"),
+            new File(project.getProjectDir(), "english_dictionary/words_en_wikipedia_jimbo.xml")
+            ] as File[]
+    outputWordsListFile new File(project.getProjectDir(), "english_dictionary/words_merged.xml")
+    maxWordsInList 100000
+
+    wordsToDiscard = ['clubbing\'s', 'muggins\'s', 'olefin', 'cs\'s']
+}
+
+task makeEnglishDictionary(type: com.anysoftkeyboard.tools.makedictionary.MakeDictionaryTask) {
+    dependsOn mergeAllWordLists
+    inputWordsListFile new File(project.getProjectDir(), "english_dictionary/words_merged.xml")
 }
 
 dependencies {
@@ -266,7 +329,10 @@ dependencies {
     compile "com.android.support:recyclerview-v7:$supportLibVersion"
     compile "com.android.support:support-annotations:$supportLibVersion"
     compile "com.android.support:palette-v7:$supportLibVersion"
-    compile 'com.github.menny.Chauffeur:permissions:37ea0668afc7a63c6ea36f318741fb291fb2a20c'
+    compile 'com.jpardogo.materialtabstrip:library:1.1.0'
+    compile ('com.github.menny.Chauffeur:permissions:37ea0668afc7a63c6ea36f318741fb291fb2a20c') {
+        exclude group: 'com.android.support'
+    }
     compile fileTree(dir: 'libs', include: '*.jar')
 
     compile 'com.amazonaws:aws-android-sdk-core:2.+'
@@ -274,7 +340,8 @@ dependencies {
     compile 'com.amazonaws:aws-android-sdk-s3:2.+'
 
     testCompile 'junit:junit:4.12'
-    testCompile 'org.robolectric:robolectric:3.0'
+    testCompile 'org.robolectric:robolectric:3.1'
+    testCompile 'org.robolectric:shadows-support-v4:3.1'
     testCompile 'org.mockito:mockito-core:1.9.5'
     canaryCompile('com.crashlytics.sdk.android:crashlytics:2.5.5@aar') {
         transitive = true;

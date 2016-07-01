@@ -11,8 +11,33 @@ public class VersionChangeLogs {
     static List<VersionChangeLog> createChangeLog() {
         List<VersionChangeLog> log = new ArrayList<>();
 
+        log.add(new VersionChangeLog(1, 8, "r2", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.8-r2"),
+                "Better keyboard preview when selecting addons (themes, language, etc.)."));
+
+        log.add(new VersionChangeLog(1, 8, "r1", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.8-r1"),
+                "Improvements on the keyboard preview. Now demos typing.",
+                "Several crash and bug fixes.",
+                "Localization update: FR (100%)."));
+
+        log.add(new VersionChangeLog(1, 8, "", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.8"),
+                "New keyboard preview - now showing EXACTLY how the keyboard should look.",
+                "New launcher icon - first iteration. Ya ya, it's not perfect.",
+                "Spellchecker fix, and other bug fixes.",
+                "Build-tools update.",
+                "Localization: DE (complete), SL (complete), MY."));
+
+        log.add(new VersionChangeLog(1, 7, "r7", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.7-r7"),
+                "A few more bug fixes.",
+                "Localization: FR, NL, NO, RU, UK."));
+
+        log.add(new VersionChangeLog(1, 7, "r6", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.7-r6"),
+                "Status-bar icon fix. It is not a setting.",
+                "Swipe from Backspace will delete a whole word for'ya.",
+                "Update to the English auto-complete dictionary. Way overdue.."));
+
         log.add(new VersionChangeLog(1, 7, "r5", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.7-r5"),
-                "Punctuation and space swapping magic."));
+                "Punctuation and space swapping magic.",
+                "Bug fixes all around."));
 
         log.add(new VersionChangeLog(1, 7, "r4", Uri.parse("https://github.com/AnySoftKeyboard/AnySoftKeyboard/milestones/1.7-r4"),
                 "Fix for a weird bug with manually picked words, plus some crashers."));

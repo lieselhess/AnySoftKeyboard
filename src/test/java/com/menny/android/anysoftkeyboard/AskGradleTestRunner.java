@@ -30,9 +30,12 @@ public class AskGradleTestRunner extends RobolectricGradleTestRunner {
                 config.manifest(),
                 config.qualifiers(),
                 config.packageName(),
+                config.abiSplit(),
                 config.resourceDir(),
                 config.assetDir(),
+                config.buildDir(),
                 addInputMethodManagerShadow(config.shadows()),
+                config.instrumentedPackages(),
                 config.application(),
                 config.libraries(),
                 ensureBuildConfig(config.constants()));
@@ -41,11 +44,12 @@ public class AskGradleTestRunner extends RobolectricGradleTestRunner {
     }
 
     private static Class<?>[] addInputMethodManagerShadow(Class<?>[] shadows) {
-        Class<?>[] newShadows = new Class<?>[shadows.length + 1];
+        Class<?>[] newShadows = new Class<?>[shadows.length + 2];
 
         System.arraycopy(shadows, 0, newShadows, 0, shadows.length);
 
-        newShadows[shadows.length] = InputMethodManagerShadow.class;
+        newShadows[newShadows.length-2] = InputMethodManagerShadow.class;
+        newShadows[newShadows.length-1] = AsyncTaskShadow.class;
         return newShadows;
     }
 

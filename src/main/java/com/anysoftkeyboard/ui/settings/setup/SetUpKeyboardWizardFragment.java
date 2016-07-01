@@ -62,7 +62,7 @@ public class SetUpKeyboardWizardFragment extends Fragment {
                     fragment.setFullIndicatorTo(position, offset);
                     break;
                 case KEY_MESSAGE_UPDATE_FRAGMENTS:
-                    if (fragment.isResumed()) {
+                    if (fragment.isResumed() && fragment.getActivity() != null) {
                         fragment.refreshFragmentsUi();
                     } else {
                         fragment.mReloadPager = true;
@@ -219,7 +219,7 @@ public class SetUpKeyboardWizardFragment extends Fragment {
         int fragmentIndex = 0;
         for (; fragmentIndex < adapter.getCount(); fragmentIndex++) {
             WizardPageBaseFragment wizardPageBaseFragment = (WizardPageBaseFragment) adapter.getItem(fragmentIndex);
-            if (!wizardPageBaseFragment.isStepCompleted()) break;
+            if (!wizardPageBaseFragment.isStepCompleted(getActivity())) break;
         }
 
         mUiHandler.removeMessages(KEY_MESSAGE_SCROLL_TO_PAGE);

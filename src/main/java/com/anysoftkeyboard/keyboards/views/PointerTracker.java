@@ -247,7 +247,10 @@ public class PointerTracker {
         checkMultiTap(eventTime, keyIndex);
         if (mListener != null) {
             if (isValidKeyIndex(keyIndex)) {
-                mListener.onPress(mKeys[keyIndex].getCodeAtIndex(0, mKeyDetector.mKeyboard.isShifted()));
+                final int codeAtIndex = mKeys[keyIndex].getCodeAtIndex(0, mKeyDetector.mKeyboard.isShifted());
+                mListener.onPress(codeAtIndex);
+                //also notifying about first down
+                mListener.onFirstDownKey(codeAtIndex);
                 // This onPress call may have changed keyboard layout. Those cases are detected at
                 // {@link #setKeyboard}. In those cases, we should update keyIndex according to the
                 // new keyboard layout.
@@ -408,12 +411,7 @@ public class PointerTracker {
     }
 
     private void startLongPressTimer(int keyIndex) {
-//        if (mKeyboardSwitcher.isInMomentaryAutoModeSwitchState()) {
-//            // We use longer timeout for sliding finger input started from the symbols mode key.
-//            mHandler.startLongPressTimer(mLongPressKeyTimeout * 3, keyIndex, this);
-//        } else {
         mHandler.startLongPressTimer(mLongPressKeyTimeout, keyIndex, this);
-//        }
     }
 
     private void detectAndSendKey(int index, int x, int y, long eventTime) {

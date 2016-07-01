@@ -1,5 +1,6 @@
 package com.menny.android.anysoftkeyboard;
 
+import android.os.IBinder;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
 
@@ -18,6 +19,11 @@ public class InputMethodManagerShadow extends org.robolectric.shadows.ShadowInpu
     private final List<InputMethodInfo> mInputMethodInfos = new ArrayList<>();
     private final Set<String> mEnabledInputMethods = new HashSet<>();
 
+    private boolean mStatusIconShown;
+    private String mLastStatusIconPackageName;
+    private int mLastStatusIconId;
+    private IBinder mLastStatusIconImeToken;
+
     public InputMethodManagerShadow() {
         //adding three IMEs, ASK, Google, and AOSP (disabled)
         mInputMethodInfos.add(new InputMethodInfo("com.menny.android.anysoftkeyboard", "SoftKeyboard", "AnySoftKeyboard", ".MainSettingsActivity"));
@@ -28,6 +34,26 @@ public class InputMethodManagerShadow extends org.robolectric.shadows.ShadowInpu
     }
 
     @Implementation
+    public void showStatusIcon(IBinder imeToken, String packageName, int iconId) {
+        mLastStatusIconImeToken = imeToken;
+        mLastStatusIconPackageName = packageName;
+        mLastStatusIconId = iconId;
+        mStatusIconShown = true;
+    }
+
+    public void clearStatusIconDetails() {
+        mLastStatusIconImeToken = null;
+        mLastStatusIconPackageName = null;
+        mLastStatusIconId = 0;
+    }
+
+    @Implementation
+    public void hideStatusIcon(IBinder imeToken) {
+        mLastStatusIconImeToken = imeToken;
+        mStatusIconShown = false;
+    }
+
+    @Implementation
     public List<InputMethodInfo> getInputMethodList() {
         return Collections.unmodifiableList(mInputMethodInfos);
     }
@@ -35,7 +61,7 @@ public class InputMethodManagerShadow extends org.robolectric.shadows.ShadowInpu
     @Implementation
     public List<InputMethodInfo> getEnabledInputMethodList() {
         List<InputMethodInfo> enabledIme = new ArrayList<>();
-        for(InputMethodInfo ime : getInputMethodList()) {
+        for (InputMethodInfo ime : getInputMethodList()) {
             if (mEnabledInputMethods.contains(ime.getPackageName())) enabledIme.add(ime);
         }
         return Collections.unmodifiableList(enabledIme);
@@ -46,7 +72,26 @@ public class InputMethodManagerShadow extends org.robolectric.shadows.ShadowInpu
     }
 
     public void setImeEnabled(String imePackageName, boolean isEnabled) {
-        if (isEnabled && !mEnabledInputMethods.contains(imePackageName)) mEnabledInputMethods.add(imePackageName);
-        else if (mEnabledInputMethods.contains(imePackageName) && !isEnabled) mEnabledInputMethods.remove(imePackageName);
+        if (isEnabled && !mEnabledInputMethods.contains(imePackageName))
+            mEnabledInputMethods.add(imePackageName);
+        else if (mEnabledInputMethods.contains(imePackageName) && !isEnabled)
+            mEnabledInputMethods.remove(imePackageName);
     }
+
+    public boolean isStatusIconShown() {
+        return mStatusIconShown;
+    }
+
+    public String getLastStatusIconPackageName() {
+        return mLastStatusIconPackageName;
+    }
+
+    public int getLastStatusIconId() {
+        return mLastStatusIconId;
+    }
+
+    public IBinder getLastStatusIconImeToken() {
+        return mLastStatusIconImeToken;
+    }
+
 }

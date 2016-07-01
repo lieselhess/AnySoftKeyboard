@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version="1.0" encoding="UTF-8"?>
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="ime_name">AnySoftKeyboard</string>
     <string name="spell_checker_settings">AnySoftKeyboard Speller Settings</string>
@@ -15,9 +15,7 @@
     <!-- main form -->
     <!-- welcome tab -->
     <string name="how_to_pointer_title">Welcome to AnySoftKeyboard</string>
-    <string name="how_to_pointer_not_app">AnySoftKeyboard is not a regular application - it is a on-screen keyboard
-        replacement.
-    </string>
+    
     <!-- links tab -->
     <string name="change_log_card_version_title_template">\u0020\u0020Latest changes for v<xliff:g id="name">%s</xliff:g>\u0020\u0020</string>
     <string name="change_log_entry_header_template_without_name">\u0020\u0020v<xliff:g id="code">%s</xliff:g>\u0020\u0020</string>
@@ -50,12 +48,6 @@
 
     <!-- settings - UI -->
     <string name="ui_group">User interface</string>
-
-    <string-array name="physical_keyboard_change_notification_types">
-        <item>Always show layout icon</item>
-        <item>On physical keyboard change</item>
-        <item>No notification</item>
-    </string-array>
 
     <!-- voice -->
     <string name="voice_input_not_installed_title">Voice Is Not Installed</string>
@@ -293,6 +285,10 @@
     <string name="is_sticky_extesion_keyboard">Sticky extension keyboard</string>
     <string name="is_sticky_extesion_keyboard_on_summary">Stays visible until explicitly closed</string>
     <string name="is_sticky_extesion_keyboard_off_summary">Closes after key press</string>
+
+    <string name="show_keyboard_icon_in_status_bar_title">Show keyboard icon in status-bar</string>
+    <string name="show_keyboard_icon_in_status_bar_on_summary">Shows the keyboard icon in the device status bar.</string>
+    <string name="show_keyboard_icon_in_status_bar_off_summary">No status-bar icon.</string>
 
     <string name="is_extesion_keyboard_above_keyboard">Top extension keyboard</string>
     <string name="is_extesion_keyboard_above_keyboard_on_summary">Drawn above main keyboard</string>
@@ -541,9 +537,8 @@
     </string>
 
     <string name="should_swap_punctuation_and_space_title">Swap punctuation and space</string>
-    <string name="should_swap_punctuation_and_space_summary"/>
-    <string name="should_swap_punctuation_and_space_yes">Yes</string>
-    <string name="should_swap_punctuation_and_space_no">No</string>
+    <string name="should_swap_punctuation_and_space_off_summary">Do not swap space and punctuation.</string>
+    <string name="should_swap_punctuation_and_space_on_summary">Swap auto-space and punctuation.</string>
 
     <string name="initial_quick_text_tab_title">Initial group</string>
     <string name="initial_quick_text_tab_summary">Quick-Text group to start with: %s</string>
@@ -623,7 +618,6 @@
     <string name="setup_wizard_step_two">Step two:</string>
     <string name="setup_wizard_step_three">Step three:</string>
     <string name="main_fragment_go_to_settings_button">Go to Settings</string>
-    <string name="quick_text_tab_title_template"><xliff:g id="first_key">%s</xliff:g>\u0020<xliff:g id="name">%s</xliff:g></string>
     <string name="accessibility_item_reorder_slider">Item re-order slider</string>
     <string name="next_word_dict_settings">Next Word settings</string>
     <string name="next_word_settings_group">Settings</string>
@@ -644,4 +638,5 @@
     <string name="navigate_to_app_permissions">Go to App permissions</string>
     <string name="turn_off_contacts_dictionary">Turn off Contacts Dictionary</string>
     <string name="read_more_about_permissions">Read more about permissions…</string>
+    <string name="ask_beta_link_promo">Hey! Want new <i>AnySoftKeyboard</i> stuff faster? Then you\'re in luck! <i>BETA</i> channel is now available for <b>YOU</b>!\nJust sign up at the link below, and update through <i>Google Play-Store</i>!\n\n https://play.google.com/apps/testing/com.menny.android.anysoftkeyboard \n\nAnd thanks for helping out to kill bugs before the reach the public.</string>
 </resources>

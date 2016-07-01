@@ -12,9 +12,7 @@
     </string>
   <string name="menu_about_item">O aplikacji</string>
   <string name="how_to_pointer_title">Witaj w AnySoftKeyboard</string>
-  <string name="how_to_pointer_not_app">AnySoftKeyboard nie jest zwykłą aplikacją - to alternatywa dla klawiatury
-        ekranowej.
-    </string>
+  
   <string name="change_log_card_version_title_template">\u0020\u0020Najnowsze zmiany dla v<xliff:g id="name">%s</xliff:g>\u0020\u0020</string>
   <string name="change_log_entry_header_template_without_name">\u0020\u0020v<xliff:g id="code">%s</xliff:g>\u0020\u0020</string>
   <string name="ime_name_beta">AnySoftKeyboard BETA</string>
@@ -35,11 +33,6 @@
   <string name="hint_add_to_dictionary">\u2190 Dotknij ponownie, aby zapisać</string>
   <string name="hint_double_tap_to_close">Ponownie, aby usunąć sugestie</string>
   <string name="ui_group">Interfejs użytkownika</string>
-  <string-array name="physical_keyboard_change_notification_types">
-    <item>Zawsze pokazuj ikonę układu</item>
-    <item>Przy zmianie fizycznej klawiatury</item>
-    <item>Brak powiadomienia</item>
-  </string-array>
   <string name="voice_input_not_installed_title">Wprowadzanie głosowe niezainstalowane</string>
   <string name="voice_input_not_installed_text">Pisanie głosowe Google nie jest zainstalowane na Twoim urządzeniu\nMożna to łatwo naprawić: pobierz je ze <i>Sklepu Google Play</i>.</string>
   <string name="voice_input_not_installed_action_install">Zainstaluj</string>
@@ -396,8 +389,6 @@
         <xliff:g id="error">%s</xliff:g>
     </string>
   <string name="should_swap_punctuation_and_space_title">Zamień znaki interpunkcyjne i spację</string>
-  <string name="should_swap_punctuation_and_space_yes">Tak</string>
-  <string name="should_swap_punctuation_and_space_no">Nie</string>
   <string name="initial_quick_text_tab_title">Grupa początkowa</string>
   <string name="initial_quick_text_tab_summary">Grupa szybkiego tekstu wyświetlana jako pierwsza: %s</string>
   <string name="initial_quick_text_tab_always_first_tab">Zawsze zaczynaj od pierwszej</string>
@@ -462,7 +453,7 @@
   <string name="setup_wizard_step_two">Krok drugi:</string>
   <string name="setup_wizard_step_three">Krok trzeci:</string>
   <string name="main_fragment_go_to_settings_button">Idź do ustawień</string>
-  <string name="quick_text_tab_title_template"><xliff:g id="first_key">%s</xliff:g>\u0020<xliff:g id="name">%s</xliff:g></string>
+  
   <string name="next_word_dict_settings">Następne Słowo - ustawienia</string>
   <string name="next_word_settings_group">Ustawienia</string>
   <string name="next_word_stats_group">Statystyki Użycia Następnego Słowa</string>

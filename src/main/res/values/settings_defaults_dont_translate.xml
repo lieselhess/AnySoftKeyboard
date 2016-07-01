@@ -2,9 +2,9 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation,TypographyDashes">
     <!-- DO NOT TRANSLATE -->
     <!-- Default settings values -->
-    <string name="settings_default_physical_keyboard_change_notification_type">2</string>
     <string name="settings_default_vibrate_on_key_press_duration">0</string>
     <bool name="settings_default_sound_on">false</bool>
+    <bool name="settings_default_keyboard_icon_in_status_bar">false</bool>
     <bool name="settings_default_lang_key_shows_popup">false</bool>
     <bool name="settings_default_show_settings_app">true</bool>
     <bool name="settings_default_show_chewbacca">true</bool>
@@ -54,7 +54,7 @@
     <bool name="settings_default_workaround_disable_rtl_fix">false</bool>
     <string name="settings_default_default_split_state">merged_always</string>
 
-    <string name="settings_default_should_swap_punctuation_and_space">yes</string>
+    <bool name="settings_default_bool_should_swap_punctuation_and_space">true</bool>
 
     <bool name="settings_default_one_shot_quick_text_popup">false</bool>
 

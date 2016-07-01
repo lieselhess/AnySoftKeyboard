@@ -20,6 +20,7 @@ import android.content.Context;
 import android.support.annotation.NonNull;
 
 import com.anysoftkeyboard.addons.AddOn;
+import com.anysoftkeyboard.keyboardextensions.KeyboardExtension;
 import com.menny.android.anysoftkeyboard.R;
 
 import java.util.List;
@@ -151,13 +152,14 @@ public class AnyPopupKeyboard extends AnyKeyboard {
         return -1;
     }
 
+    @NonNull
     @Override
     public String getKeyboardPrefId() {
         return "keyboard_popup";
     }
 
     @Override
-    protected void addGenericRows(int mode, KeyboardDimens keyboardDimens) {
+    protected void addGenericRows(int mode, KeyboardDimens keyboardDimens, KeyboardExtension topRowPlugin, KeyboardExtension bottomRowPlugin) {
         //no generic rows in popups, only in main keyboard
     }
 

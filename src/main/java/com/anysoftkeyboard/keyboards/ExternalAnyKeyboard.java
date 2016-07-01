@@ -54,6 +54,7 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
     private static final String XML_MULTITAP_CHARACTERS_ATTRIBUTE = "characters";
     private static final String XML_ALT_ATTRIBUTE = "altModifier";
     private static final String XML_SHIFT_ATTRIBUTE = "shiftModifier";
+    @NonNull
     private final String mPrefId;
     private final String mName;
     private final int mIconId;
@@ -67,7 +68,7 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
 
     public ExternalAnyKeyboard(@NonNull AddOn keyboardAddOn, @NonNull Context askContext,
                                @NonNull Context context, int xmlLayoutResId, int xmlLandscapeResId,
-                               String prefId, String name, int iconResId,
+                               @NonNull String prefId, String name, int iconResId,
                                int qwertyTranslationId, String defaultDictionary,
                                String additionalIsLetterExceptions, String sentenceSeparators,
                                int mode) {
@@ -91,8 +92,7 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
                 additionalIsLetterExceptions != null ? additionalIsLetterExceptions.length() : 0);
         if (additionalIsLetterExceptions != null) {
             for (int i = 0; i < additionalIsLetterExceptions.length(); i++)
-                mAdditionalIsLetterExceptions.add(additionalIsLetterExceptions
-                        .charAt(i));
+                mAdditionalIsLetterExceptions.add(additionalIsLetterExceptions.charAt(i));
         }
 
         if (sentenceSeparators != null) {
@@ -222,10 +222,10 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "Parse error:" + e);
+            String errorMessage = String.format(Locale.US, "Failed to parse keyboard layout. Keyboard '%s' (id %s, package %s), translatorResourceId %d", getKeyboardName(), getKeyboardPrefId(), getKeyboardAddOn().getPackageName(), qwertyTranslationId);
+            Log.e(TAG, errorMessage, e);
             e.printStackTrace();
-            if (BuildConfig.DEBUG)
-                throw new RuntimeException("Failed to parse keyboard layout.", e);
+            if (BuildConfig.DEBUG) throw new RuntimeException(errorMessage, e);
         }
         return translator;
     }
@@ -263,6 +263,7 @@ public class ExternalAnyKeyboard extends AnyKeyboard implements HardKeyboardTran
         return mLocale;
     }
 
+    @NonNull
     @Override
     public String getKeyboardPrefId() {
         return mPrefId;

@@ -2,11 +2,9 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="ExtraTranslation,MissingTranslation">
     <!-- DO NOT TRANSLATE -->
     <!-- settings keys -->
-    <!--
-    <string name="settings_key_top_keyboard_row_id">top_keyboard_row_id</string>
-     -->
-    <string name="settings_key_physical_keyboard_change_notification_type">physical_keyboard_change_notification_type
-    </string>
+
+    <string name="settings_key_keyboard_icon_in_status_bar">settings_key_keyboard_icon_in_status_bar</string>
+
     <string name="settings_key_vibrate_on_key_press_duration">vibrate_on_key_press_duration</string>
     <string name="settings_key_sound_on">sound_on</string>
 
@@ -100,16 +98,7 @@
     <string name="settings_key_is_extesion_keyboard_above_keyboard">settings_key_is_extesion_keyboard_above_keyboard
     </string>
 
-    <string name="settings_key_should_swap_punctuation_and_space">settings_key_should_swap_punctuation_and_space</string>
-    <!-- these values are normalized. -->
-    <string-array name="settings_key_should_swap_punctuation_and_space_values">
-        <item>yes</item>
-        <item>no</item>
-    </string-array>
-    <string-array name="settings_key_should_swap_punctuation_and_space_names">
-        <item>@string/should_swap_punctuation_and_space_yes</item>
-        <item>@string/should_swap_punctuation_and_space_no</item>
-    </string-array>
+    <string name="settings_key_bool_should_swap_punctuation_and_space">settings_key_bool_should_swap_punctuation_and_space</string>
 
     <string name="settings_key_one_shot_quick_text_popup">settings_key_one_shot_quick_text_popup</string>
 
@@ -217,11 +206,6 @@
         <item>@string/settings_long_press_timeout_slow</item>
         <item>@string/settings_long_press_timeout_slower</item>
         <item>@string/settings_long_press_timeout_never</item>
-    </string-array>
-
-    <string-array name="pref_list_empty_types">
-    </string-array>
-    <string-array name="pref_list_empty_values">
     </string-array>
 
     <string name="settings_key_workaround_disable_rtl_fix">settings_key_workaround_disable_rtl_fix</string>

@@ -2,12 +2,13 @@ package com.anysoftkeyboard.ui.settings.setup;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 
-import com.anysoftkeyboard.ui.settings.KeyboardAddOnSettingsFragment;
+import com.anysoftkeyboard.ui.settings.KeyboardAddOnBrowserFragment;
 import com.anysoftkeyboard.ui.settings.KeyboardThemeSelectorFragment;
 import com.anysoftkeyboard.ui.settings.MainSettingsActivity;
 import com.menny.android.anysoftkeyboard.R;
@@ -31,13 +32,13 @@ public class WizardPageDoneAndMoreSettingsFragment extends WizardPageBaseFragmen
     }
 
     @Override
-    protected boolean isStepCompleted() {
+    protected boolean isStepCompleted(@NonNull Context context) {
         return false;//this step is never done! You can always configure more :)
     }
 
     @Override
-    protected boolean isStepPreConditionDone() {
-        return SetupSupport.isThisKeyboardSetAsDefaultIME(getActivity());
+    protected boolean isStepPreConditionDone(@NonNull Context context) {
+        return SetupSupport.isThisKeyboardSetAsDefaultIME(context);
     }
 
     @Override
@@ -54,7 +55,7 @@ public class WizardPageDoneAndMoreSettingsFragment extends WizardPageBaseFragmen
                 activity.onNavigateToRootClicked(v);
                 break;
             case R.id.go_to_languages_action:
-                activity.addFragmentToUi(new KeyboardAddOnSettingsFragment(), TransitionExperiences.DEEPER_EXPERIENCE_TRANSITION);
+                activity.addFragmentToUi(new KeyboardAddOnBrowserFragment(), TransitionExperiences.DEEPER_EXPERIENCE_TRANSITION);
                 break;
             case R.id.go_to_theme_action:
                 activity.addFragmentToUi(new KeyboardThemeSelectorFragment(), TransitionExperiences.DEEPER_EXPERIENCE_TRANSITION);
