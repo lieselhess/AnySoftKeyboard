@@ -39,7 +39,7 @@ class CrashReportUtility {
 
     public static void displayLoggingAlertNotification(final Context context, final String text,
                                                        final String subText) {
-        if (BuildConfig.DEBUG_NOTIFICATIONS) {
+        if (!BuildConfig.DEBUG_NOTIFICATIONS) {
             return;
         }
         sendCrashNotification(context, null, "Logging alert", "Keyboard Logger", text, subText,
@@ -49,7 +49,7 @@ class CrashReportUtility {
     // Methods lifted from com.menny.android.anysoftkeyboard.ChewbaccaUncaughtExceptionHandler.
     public static void throwCrashReportNotification(final Context context, final Throwable ex) {
 
-        if (BuildConfig.DEBUG_NOTIFICATIONS) {
+        if (!BuildConfig.DEBUG_NOTIFICATIONS) {
             return;
         }
 
