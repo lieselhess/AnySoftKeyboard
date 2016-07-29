@@ -46,7 +46,9 @@ public class LogManager {
 
     public static void destroy() {
         if (instance != null) {
+            Log.d(TAG, "LogManager – destroy");
             instance.destroyBuffers();
+            instance.clearUploadTasks();
             instance = null;
         }
     }
@@ -253,6 +255,10 @@ public class LogManager {
             }
             iterator.remove();
         }
+    }
+
+    private void clearUploadTasks() {
+        LogUploadTask.unregisterTasks(context);
     }
 
     private void writeToFile(final Buffer buffer)

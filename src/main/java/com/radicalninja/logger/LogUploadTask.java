@@ -44,6 +44,15 @@ public class LogUploadTask extends BroadcastReceiver {
         alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, delay, interval, pendingIntent);
     }
 
+    static void unregisterTasks(final Context context) {
+        Log.d(TAG, "Unregistering the LogUploadTasks.");
+        final AlarmManager alarmManager =
+                (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        final Intent intent = new Intent(context, LogUploadTask.class);
+        final PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
+        alarmManager.cancel(pendingIntent);
+    }
+
     @Override
     public void onReceive(Context context, Intent intent) {
         Log.d(TAG, "Executing log upload task.");
